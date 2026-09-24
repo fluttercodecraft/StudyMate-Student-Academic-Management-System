@@ -1,34 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:study_mate/Screens/Splash_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'core/theme.dart';
 import 'firebase_options.dart';
+import 'Screens/Splash_screen.dart';
 
-Future main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase initialization notice: $e');
+  }
 
-  runApp(const MyApp());
+  runApp(const StudyMateApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class StudyMateApp extends StatelessWidget {
+  const StudyMateApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'StudyMate',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF196EEE), // Matches StudyMate primary blue
-          primary: const Color(0xFF196EEE),
-        ),
-        scaffoldBackgroundColor: Colors.white,
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme,
       home: const SplashScreen(),
     );
   }
