@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'core/theme.dart';
 import 'firebase_options.dart';
-import 'Screens/Splash_screen.dart';
+import 'splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,7 +25,10 @@ class StudyMateApp extends StatelessWidget {
     return MaterialApp(
       title: 'StudyMate',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
+      theme: ThemeData(
+        useMaterial3: true,
+        fontFamily: 'Poppins',
+      ),
       home: const SplashScreen(),
     );
   }
