@@ -1,7 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:study_mate/LoginScreen.dart';
 import 'package:study_mate/main.dart';
-import 'package:study_mate/Screens/Splash_screen.dart';
-import 'package:study_mate/Screens/auth/login_screen.dart';
+import 'package:study_mate/splashScreen.dart';
+
 
 void main() {
   testWidgets('StudyMate App full launch and splash navigation test', (WidgetTester tester) async {
