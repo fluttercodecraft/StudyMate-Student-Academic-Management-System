@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'register_screen.dart'; // Adjust path if needed
+import 'package:study_mate/RegisterScreen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
