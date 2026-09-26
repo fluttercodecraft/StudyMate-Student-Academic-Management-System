@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:study_mate/ForgetPassward.dart';
 import 'package:study_mate/RegisterScreen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -29,18 +30,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
+        email: _emailController.text.trim().toLowerCase(),
         password: _passwordController.text.trim(),
       );
 
       if (!mounted) return;
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const HomeScreen(),
-        ),
-      );
+      // Note: If using StreamBuilder for auth state at the root level,
+      // sign-in will automatically trigger navigation.
+      // Navigator push handles standalone screen transitions.
+      _showMessage('Logged in successfully');
     } on FirebaseAuthException catch (e) {
       String message = 'Login failed';
 
@@ -64,9 +63,13 @@ class _LoginScreenState extends State<LoginScreen> {
           message = e.message ?? message;
       }
 
-      if (mounted) _showMessage(message);
+      if (mounted) {
+        _showMessage(message);
+      }
     } catch (e) {
-      if (mounted) _showMessage('An unexpected error occurred. Please try again.');
+      if (mounted) {
+        _showMessage('An unexpected error occurred. Please try again.');
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -76,26 +79,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _resetPassword() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty) {
-      _showMessage('Enter your email to receive a password reset link');
-      return;
-    }
-
-    try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      if (mounted) {
-        _showMessage('Password reset email sent to $email');
-      }
-    } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        _showMessage(e.message ?? 'Failed to send reset email');
-      }
-    }
-  }
-
   void _showMessage(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -116,16 +101,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final borderStyle = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide.none,
-    );
-
-    final errorBorderStyle = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: Colors.redAccent, width: 1),
-    );
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       body: SafeArea(
@@ -157,6 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 30),
 
+                // Title & Subtitle
                 const Center(
                   child: Text(
                     'Welcome Back!',
@@ -166,9 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 8),
-
                 const Center(
                   child: Text(
                     'Login to continue to StudyMate',
@@ -181,7 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 40),
 
-                // Email Input
+                // Email
                 const Text(
                   'Email',
                   style: TextStyle(fontWeight: FontWeight.w600),
@@ -194,28 +168,26 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter your email';
                     }
-                    final emailRegExp =
-                    RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+
+                    final emailRegExp = RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    );
+
                     if (!emailRegExp.hasMatch(value.trim())) {
                       return 'Please enter a valid email address';
                     }
+
                     return null;
                   },
-                  decoration: InputDecoration(
+                  decoration: _buildInputDecoration(
                     hintText: 'Enter your email',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: borderStyle,
-                    focusedBorder: borderStyle,
-                    errorBorder: errorBorderStyle,
-                    focusedErrorBorder: errorBorderStyle,
+                    icon: Icons.email_outlined,
                   ),
                 ),
 
                 const SizedBox(height: 20),
 
-                // Password Input
+                // Password
                 const Text(
                   'Password',
                   style: TextStyle(fontWeight: FontWeight.w600),
@@ -230,9 +202,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     }
                     return null;
                   },
-                  decoration: InputDecoration(
+                  decoration: _buildInputDecoration(
                     hintText: 'Enter your password',
-                    prefixIcon: const Icon(Icons.lock_outline),
+                    icon: Icons.lock_outline,
                     suffixIcon: IconButton(
                       icon: Icon(
                         _passwordVisible
@@ -245,12 +217,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         });
                       },
                     ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: borderStyle,
-                    focusedBorder: borderStyle,
-                    errorBorder: errorBorderStyle,
-                    focusedErrorBorder: errorBorderStyle,
                   ),
                 ),
 
@@ -260,11 +226,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: _resetPassword,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ForgotPasswordScreen(),
+                        ),
+                      );
+                    },
                     child: const Text(
                       'Forgot Password?',
                       style: TextStyle(
                         color: Color(0xFF1355D6),
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -306,7 +280,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 25),
 
-                // Navigate to Register Screen
+                // Register Prompt
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -340,27 +314,37 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-}
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('StudyMate'),
-        backgroundColor: const Color(0xFF1355D6),
-        foregroundColor: Colors.white,
+  InputDecoration _buildInputDecoration({
+    required String hintText,
+    required IconData icon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      hintText: hintText,
+      prefixIcon: Icon(icon),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
       ),
-      body: const Center(
-        child: Text(
-          'Welcome to StudyMate',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFF1355D6), width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
       ),
     );
   }

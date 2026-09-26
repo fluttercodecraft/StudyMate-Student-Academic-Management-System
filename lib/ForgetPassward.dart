@@ -1,26 +1,20 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+class ForgotPasswordScreen extends StatefulWidget {
+  const ForgotPasswordScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-
-  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
 
-  bool _passwordVisible = false;
-  bool _confirmPasswordVisible = false;
   bool _isLoading = false;
 
-  Future<void> _registerUser() async {
+  Future<void> _resetPassword() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -28,31 +22,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      final userCredential =
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      await FirebaseAuth.instance.sendPasswordResetEmail(
         email: _emailController.text.trim().toLowerCase(),
-        password: _passwordController.text.trim(),
       );
-
-      // Save display name to Firebase Auth profile
-      await userCredential.user?.updateDisplayName(_nameController.text.trim());
 
       if (!mounted) return;
 
-      _showMessage('Account created successfully');
+      _showMessage('Password reset email sent! Please check your inbox.');
       Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
-      String message = 'Registration failed';
+      String message = 'Failed to send reset link';
 
       switch (e.code) {
-        case 'email-already-in-use':
-          message = 'This email is already registered';
+        case 'user-not-found':
+          message = 'No account registered with this email';
           break;
         case 'invalid-email':
-          message = 'Invalid email address';
-          break;
-        case 'weak-password':
-          message = 'Password is too weak';
+          message = 'Please enter a valid email address';
           break;
       }
 
@@ -77,10 +63,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
     _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -88,15 +71,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black26,),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(25),
+          padding: const EdgeInsets.symmetric(horizontal: 25),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 25),
+                const SizedBox(height: 10),
 
                 // App Logo
                 Center(
@@ -108,7 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(22),
                     ),
                     child: const Icon(
-                      Icons.school_rounded,
+                      Icons.lock_reset_rounded,
                       color: Colors.white,
                       size: 48,
                     ),
@@ -120,7 +111,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 // Title
                 const Center(
                   child: Text(
-                    'Create Account',
+                    'Forgot Password?',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -132,7 +123,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 const Center(
                   child: Text(
-                    'Create your StudyMate account',
+                    'Enter your registered email to receive a password reset link',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.grey,
                       fontSize: 15,
@@ -142,29 +134,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 const SizedBox(height: 35),
 
-                // Full Name
-                _buildLabel('Full Name'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _nameController,
-                  keyboardType: TextInputType.name,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: _buildInputDecoration(
-                    hintText: 'Enter your full name',
-                    icon: Icons.person_outline,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your name';
-                    }
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 18),
-
-                // Email
-                _buildLabel('Email'),
+                // Email Field
+                _buildLabel('Email Address'),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _emailController,
@@ -177,7 +148,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter your email';
                     }
-                    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                    final emailRegex =
+                    RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
                     if (!emailRegex.hasMatch(value.trim())) {
                       return 'Please enter a valid email address';
                     }
@@ -185,84 +157,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
 
-                const SizedBox(height: 18),
-
-                // Password
-                _buildLabel('Password'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: !_passwordVisible,
-                  decoration: _buildInputDecoration(
-                    hintText: 'Create a password',
-                    icon: Icons.lock_outline,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _passwordVisible
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _passwordVisible = !_passwordVisible;
-                        });
-                      },
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a password';
-                    }
-                    if (value.trim().length < 6) {
-                      return 'Password must be at least 6 characters';
-                    }
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 18),
-
-                // Confirm Password
-                _buildLabel('Confirm Password'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: !_confirmPasswordVisible,
-                  decoration: _buildInputDecoration(
-                    hintText: 'Confirm your password',
-                    icon: Icons.lock_outline,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _confirmPasswordVisible
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _confirmPasswordVisible = !_confirmPasswordVisible;
-                        });
-                      },
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please confirm your password';
-                    }
-                    if (value.trim() != _passwordController.text.trim()) {
-                      return 'Passwords do not match';
-                    }
-                    return null;
-                  },
-                ),
-
                 const SizedBox(height: 25),
 
-                // Submit Button
+                // Reset Button
                 SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _registerUser,
+                    onPressed: _isLoading ? null : _resetPassword,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1355D6),
                       foregroundColor: Colors.white,
@@ -280,7 +182,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     )
                         : const Text(
-                      'Create Account',
+                      'Send Reset Link',
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
@@ -291,12 +193,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 const SizedBox(height: 20),
 
-                // Bottom Navigation Text
+                // Back to Login Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text(
-                      'Already have an account?',
+                      'Remembered your password?',
                       style: TextStyle(color: Colors.grey),
                     ),
                     TextButton(
@@ -311,8 +213,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 15),
               ],
             ),
           ),
@@ -331,12 +231,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   InputDecoration _buildInputDecoration({
     required String hintText,
     required IconData icon,
-    Widget? suffixIcon,
   }) {
     return InputDecoration(
       hintText: hintText,
       prefixIcon: Icon(icon),
-      suffixIcon: suffixIcon,
       filled: true,
       fillColor: Colors.white,
       border: OutlineInputBorder(
