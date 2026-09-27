@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:study_mate/DashboardScreen.dart';
 import 'package:study_mate/ForgetPassward.dart';
 import 'package:study_mate/RegisterScreen.dart';
 
@@ -36,10 +37,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      // Note: If using StreamBuilder for auth state at the root level,
-      // sign-in will automatically trigger navigation.
-      // Navigator push handles standalone screen transitions.
-      _showMessage('Logged in successfully');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const DashboardScreen(),
+        ),
+      );
     } on FirebaseAuthException catch (e) {
       String message = 'Login failed';
 
@@ -81,6 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _showMessage(String message) {
     if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -132,7 +136,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 30),
 
-                // Title & Subtitle
                 const Center(
                   child: Text(
                     'Welcome Back!',
@@ -142,7 +145,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
+
                 const SizedBox(height: 8),
+
                 const Center(
                   child: Text(
                     'Login to continue to StudyMate',
@@ -158,9 +163,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Email
                 const Text(
                   'Email',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
+
                 const SizedBox(height: 8),
+
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -190,9 +199,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Password
                 const Text(
                   'Password',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
+
                 const SizedBox(height: 8),
+
                 TextFormField(
                   controller: _passwordController,
                   obscureText: !_passwordVisible,
@@ -200,6 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter your password';
                     }
+
                     return null;
                   },
                   decoration: _buildInputDecoration(
@@ -222,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 10),
 
-                // Forgot Password Button
+                // Forgot Password
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -286,7 +300,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const Text(
                       "Don't have an account?",
-                      style: TextStyle(color: Colors.grey),
+                      style: TextStyle(
+                        color: Colors.grey,
+                      ),
                     ),
                     TextButton(
                       onPressed: () {
@@ -336,15 +352,24 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF1355D6), width: 1.5),
+        borderSide: const BorderSide(
+          color: Color(0xFF1355D6),
+          width: 1.5,
+        ),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+        borderSide: const BorderSide(
+          color: Colors.redAccent,
+          width: 1,
+        ),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+        borderSide: const BorderSide(
+          color: Colors.redAccent,
+          width: 1.5,
+        ),
       ),
     );
   }
