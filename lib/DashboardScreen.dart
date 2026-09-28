@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:study_mate/courcesscreen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -184,7 +185,11 @@ class DashboardScreen extends StatelessWidget {
                     title: 'Courses',
                     subtitle: 'View your courses',
                     onTap: () {
-                      // TODO: Navigate to Courses Screen
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const CoursesScreen(),
+                        ),
+                      );
                     },
                   ),
                 ),
@@ -254,6 +259,7 @@ class DashboardScreen extends StatelessWidget {
       ),
     );
   }
+
   Widget _buildStudyCard({
     required IconData icon,
     required String title,
