@@ -167,10 +167,7 @@ class DashboardScreen extends StatelessWidget {
                 ],
               ),
             ),
-
             const SizedBox(height: 25),
-
-            // Study Features Grid
             const Text(
               'Study Tools',
               style: TextStyle(
@@ -178,9 +175,7 @@ class DashboardScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 15),
-
             Row(
               children: [
                 Expanded(
@@ -206,9 +201,7 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ],
             ),
-
             const SizedBox(height: 15),
-
             Row(
               children: [
                 Expanded(
@@ -234,9 +227,7 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ],
             ),
-
             const SizedBox(height: 30),
-
             // Logout Button
             SizedBox(
               width: double.infinity,
@@ -257,14 +248,12 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(height: 15),
           ],
         ),
       ),
     );
   }
-
   Widget _buildStudyCard({
     required IconData icon,
     required String title,
