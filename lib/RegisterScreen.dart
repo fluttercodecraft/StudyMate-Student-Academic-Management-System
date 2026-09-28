@@ -6,27 +6,26 @@ class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State createState() => _RegisterScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State {
-  // FIXED 1: Replaced GlobalKey with GlobalKey explicit typing
-  final _formKey = GlobalKey();
+class _RegisterScreenState extends State<RegisterScreen> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
 
-  final List _roles = ['Student', 'Teacher', 'Admin'];
+  final List<String> _roles = ['Student', 'Teacher', 'Admin'];
   String _selectedRole = 'Student';
 
   bool _passwordVisible = false;
   bool _confirmPasswordVisible = false;
   bool _loading = false;
 
-  Future _registerUser() async {
-    if (!_formKey.currentState!.validate()) {
+  Future<void> _registerUser() async {
+    if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
 
@@ -79,12 +78,10 @@ class _RegisterScreenState extends State {
           message = e.message ?? message;
       }
 
-      // FIXED 6: Wrapped if-statement body inside curly braces {}
       if (mounted) {
         _showMessage(message);
       }
     } catch (e) {
-      // FIXED 6: Wrapped if-statement body inside curly braces {}
       if (mounted) {
         _showMessage('An unexpected error occurred. Please try again.');
       }
@@ -221,9 +218,8 @@ class _RegisterScreenState extends State {
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
-                DropdownButtonFormField(
-                  // FIXED 4: Replaced 'value:' with 'initialValue:' (Flutter 3.33+ deprecation)
-                  initialValue: _selectedRole,
+                DropdownButtonFormField<String>(
+                  value: _selectedRole,
                   icon: const Icon(Icons.arrow_drop_down),
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.badge_outlined),
@@ -234,9 +230,8 @@ class _RegisterScreenState extends State {
                     errorBorder: errorBorderStyle,
                     focusedErrorBorder: errorBorderStyle,
                   ),
-                  // FIXED 2 & 3: Explicitly type mapped list as List>
-                  items: _roles.map>((String role) {
-                    return DropdownMenuItem(
+                  items: _roles.map((String role) {
+                    return DropdownMenuItem<String>(
                       value: role,
                       child: Text(role),
                     );
