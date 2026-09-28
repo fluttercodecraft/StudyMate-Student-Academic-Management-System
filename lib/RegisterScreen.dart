@@ -10,6 +10,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State {
+  // FIXED 1: Replaced GlobalKey with GlobalKey explicit typing
   final _formKey = GlobalKey();
 
   final _nameController = TextEditingController();
@@ -17,7 +18,6 @@ class _RegisterScreenState extends State {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  // Role management
   final List _roles = ['Student', 'Teacher', 'Admin'];
   String _selectedRole = 'Student';
 
@@ -35,7 +35,6 @@ class _RegisterScreenState extends State {
     });
 
     try {
-      // 1. Create Firebase Auth User
       final userCredential =
       await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
@@ -45,15 +44,13 @@ class _RegisterScreenState extends State {
       final user = userCredential.user;
 
       if (user != null) {
-        // 2. Update Display Name on Firebase Auth Profile
         await user.updateDisplayName(_nameController.text.trim());
 
-        // 3. Save User Details and Role in Cloud Firestore
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'uid': user.uid,
           'name': _nameController.text.trim(),
           'email': _emailController.text.trim(),
-          'role': _selectedRole, // Saving selected role
+          'role': _selectedRole,
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
@@ -82,9 +79,15 @@ class _RegisterScreenState extends State {
           message = e.message ?? message;
       }
 
-      if (mounted) _showMessage(message);
+      // FIXED 6: Wrapped if-statement body inside curly braces {}
+      if (mounted) {
+        _showMessage(message);
+      }
     } catch (e) {
-      if (mounted) _showMessage('An unexpected error occurred. Please try again.');
+      // FIXED 6: Wrapped if-statement body inside curly braces {}
+      if (mounted) {
+        _showMessage('An unexpected error occurred. Please try again.');
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -219,7 +222,8 @@ class _RegisterScreenState extends State {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField(
-                  value: _selectedRole,
+                  // FIXED 4: Replaced 'value:' with 'initialValue:' (Flutter 3.33+ deprecation)
+                  initialValue: _selectedRole,
                   icon: const Icon(Icons.arrow_drop_down),
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.badge_outlined),
@@ -230,7 +234,8 @@ class _RegisterScreenState extends State {
                     errorBorder: errorBorderStyle,
                     focusedErrorBorder: errorBorderStyle,
                   ),
-                  items: _roles.map((String role) {
+                  // FIXED 2 & 3: Explicitly type mapped list as List>
+                  items: _roles.map>((String role) {
                     return DropdownMenuItem(
                       value: role,
                       child: Text(role),
