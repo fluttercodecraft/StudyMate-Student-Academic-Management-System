@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:study_mate/AuthScreens/LoginScreen.dart';
+import 'package:study_mate/StudentScreens/courcesScreen.dart';
 
 class StudentDashboardScreen extends StatelessWidget {
   const StudentDashboardScreen({super.key});
@@ -205,7 +206,7 @@ class StudentDashboardScreen extends StatelessWidget {
                   title: 'Courses',
                   subtitle: 'View your courses',
                   onTap: () {
-                    // TODO: Navigate to Courses Screen
+                   Navigator.push(context, MaterialPageRoute(builder: (context)=>CoursesScreen()));
                   },
                 ),
                 _buildStudyCard(
