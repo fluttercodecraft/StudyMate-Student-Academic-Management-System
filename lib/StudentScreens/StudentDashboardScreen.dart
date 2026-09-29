@@ -239,12 +239,20 @@ class DashboardScreen extends StatelessWidget {
               width: double.infinity,
               height: 52,
               child: OutlinedButton.icon(
-                onPressed: () => _handleLogout(context),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(),
+                    ),
+                  );
+                },
                 icon: const Icon(Icons.logout_rounded),
                 label: const Text(
                   'Logout',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
+
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF1355D6),
                   side: const BorderSide(color: Color(0xFF1355D6)),
