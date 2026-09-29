@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:study_mate/LoginScreen.dart';
+import 'package:study_mate/AuthScreens/LoginScreen.dart';
 import 'package:study_mate/main.dart';
-import 'package:study_mate/splashScreen.dart';
+import 'package:study_mate/splashScreen/splashScreen.dart';
 
 
 void main() {

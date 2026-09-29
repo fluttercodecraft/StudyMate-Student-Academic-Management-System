@@ -1,8 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:study_mate/DashboardScreen.dart';
-import 'package:study_mate/ForgetPassward.dart';
-import 'package:study_mate/RegisterScreen.dart';
+import 'package:study_mate/StudentScreens/StudentDashboardScreen.dart';
+import 'package:study_mate/AuthScreens/ForgetPassward.dart';
+import 'package:study_mate/AuthScreens/RegisterScreen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
