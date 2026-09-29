@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:study_mate/AuthScreens/LoginScreen.dart';
-class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+
+class StudentDashboardScreen extends StatelessWidget {
+  const StudentDashboardScreen({super.key});
+
   Future<void> _handleLogout(BuildContext context) async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -16,6 +18,7 @@ class DashboardScreen extends StatelessWidget {
       );
     }
   }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -38,15 +41,13 @@ class DashboardScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Logout',
-            onPressed: ()
-            {
+            onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const LoginScreen()
+                  builder: (context) => const LoginScreen(),
                 ),
               );
-
             },
           ),
         ],
@@ -172,6 +173,7 @@ class DashboardScreen extends StatelessWidget {
                 ],
               ),
             ),
+
             const SizedBox(height: 25),
             const Text(
               'Study Tools',
@@ -181,58 +183,82 @@ class DashboardScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 15),
-            Row(
+
+            // Study Tools grid.
+            // Fill in each onTap with Navigator.push to your own screen
+            // once it's ready, e.g.:
+            // onTap: () {
+            //   Navigator.of(context).push(
+            //     MaterialPageRoute(builder: (context) => const CoursesScreen()),
+            //   );
+            // },
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              mainAxisSpacing: 15,
+              crossAxisSpacing: 15,
+              childAspectRatio: 1.05,
               children: [
-                Expanded(
-                  child: _buildStudyCard(
-                    icon: Icons.menu_book_rounded,
-                    title: 'Courses',
-                    subtitle: 'View your courses',
-                    onTap: () {
-
-
-                    },
-                  ),
+                _buildStudyCard(
+                  icon: Icons.menu_book_rounded,
+                  title: 'Courses',
+                  subtitle: 'View your courses',
+                  onTap: () {
+                    // TODO: Navigate to Courses Screen
+                  },
                 ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: _buildStudyCard(
-                    icon: Icons.assignment_rounded,
-                    title: 'Tasks',
-                    subtitle: 'Manage your tasks',
-                    onTap: () {
-                      // TODO: Navigate to Tasks Screen
-                    },
-                  ),
+                _buildStudyCard(
+                  icon: Icons.assignment_rounded,
+                  title: 'Assignments',
+                  subtitle: 'Submit & track work',
+                  onTap: () {
+                    // TODO: Navigate to Assignments Screen
+                  },
+                ),
+                _buildStudyCard(
+                  icon: Icons.quiz_rounded,
+                  title: 'Quizzes',
+                  subtitle: 'Practice & test',
+                  onTap: () {
+                    // TODO: Navigate to Quizzes Screen
+                  },
+                ),
+                _buildStudyCard(
+                  icon: Icons.fact_check_rounded,
+                  title: 'Attendance',
+                  subtitle: 'Track presence',
+                  onTap: () {
+                    // TODO: Navigate to Attendance Screen
+                  },
+                ),
+                _buildStudyCard(
+                  icon: Icons.bar_chart_rounded,
+                  title: 'Marks',
+                  subtitle: 'View your grades',
+                  onTap: () {
+                    // TODO: Navigate to Marks Screen
+                  },
+                ),
+                _buildStudyCard(
+                  icon: Icons.calendar_month_rounded,
+                  title: 'Timetable',
+                  subtitle: 'Weekly schedule',
+                  onTap: () {
+                    // TODO: Navigate to Timetable Screen
+                  },
+                ),
+                _buildStudyCard(
+                  icon: Icons.sticky_note_2_rounded,
+                  title: 'Notes',
+                  subtitle: 'Study materials',
+                  onTap: () {
+                    // TODO: Navigate to Notes Screen
+                  },
                 ),
               ],
             ),
-            const SizedBox(height: 15),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStudyCard(
-                    icon: Icons.calendar_month_rounded,
-                    title: 'Schedule',
-                    subtitle: 'Plan your study',
-                    onTap: () {
-                      // TODO: Navigate to Schedule Screen
-                    },
-                  ),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: _buildStudyCard(
-                    icon: Icons.bar_chart_rounded,
-                    title: 'Progress',
-                    subtitle: 'Track your progress',
-                    onTap: () {
-                      // TODO: Navigate to Progress Screen
-                    },
-                  ),
-                ),
-              ],
-            ),
+
             const SizedBox(height: 30),
             // Logout Button
             SizedBox(
@@ -252,7 +278,6 @@ class DashboardScreen extends StatelessWidget {
                   'Logout',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF1355D6),
                   side: const BorderSide(color: Color(0xFF1355D6)),
@@ -314,6 +339,7 @@ class DashboardScreen extends StatelessWidget {
                   color: Colors.grey,
                   fontSize: 12,
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),

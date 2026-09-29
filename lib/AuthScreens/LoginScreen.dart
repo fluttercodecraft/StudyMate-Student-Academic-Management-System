@@ -40,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => const DashboardScreen(),
+          builder: (context) => const StudentDashboardScreen()
         ),
       );
     } on FirebaseAuthException catch (e) {
