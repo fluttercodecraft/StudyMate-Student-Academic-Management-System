@@ -1,13 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:study_mate/AuthScreens/LoginScreen.dart';
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
   Future<void> _handleLogout(BuildContext context) async {
     try {
       await FirebaseAuth.instance.signOut();
       if (!context.mounted) return;
-      // If you are using AuthWrapper with StreamBuilder, the stream will
-      // automatically show LoginScreen. Otherwise, clear navigation stack:
+
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
     } catch (e) {
       if (!context.mounted) return;
@@ -38,7 +38,16 @@ class DashboardScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Logout',
-            onPressed: () => _handleLogout(context),
+            onPressed: ()
+            {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const LoginScreen()
+                ),
+              );
+
+            },
           ),
         ],
       ),
