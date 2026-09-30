@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:study_mate/TeacherScreens/createCourse.dart';
 
 
 class TeacherDashboard extends StatelessWidget {
