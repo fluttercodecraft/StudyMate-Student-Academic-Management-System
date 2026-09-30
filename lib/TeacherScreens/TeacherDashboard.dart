@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'create_course.dart';
-import 'teacher_courses.dart';
+
 
 class TeacherDashboard extends StatelessWidget {
   const TeacherDashboard({super.key});
@@ -144,3 +143,36 @@ class TeacherDashboard extends StatelessWidget {
       child: Container(
         height: 130,
         padding: const EdgeInsets.all(15),
+
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(
+            color: Colors.grey.shade300,
+          ),
+        ),
+
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+
+            Icon(
+              icon,
+              size: 35,
+            ),
+
+            const SizedBox(height: 10),
+
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
