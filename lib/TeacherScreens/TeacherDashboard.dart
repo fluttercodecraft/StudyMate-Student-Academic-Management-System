@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:study_mate/TeacherScreens/Teachercources.dart';
 import 'package:study_mate/TeacherScreens/createCourse.dart';
-
 class TeacherDashboard extends StatelessWidget {
   const TeacherDashboard({super.key});
-
   // Palette
   static const _ink = Color(0xFF1B1F3B);
   static const _paper = Color(0xFFF3F5FA);
