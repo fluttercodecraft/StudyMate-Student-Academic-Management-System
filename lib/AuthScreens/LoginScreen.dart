@@ -1,5 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
 import 'package:study_mate/StudentScreens/StudentDashboardScreen.dart';
@@ -15,12 +15,22 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // IMPORTANT:
-  // Form needs GlobalKey<FormState>
+  // ============================================================
+  // FORM
+  // ============================================================
+
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+  // ============================================================
+  // CONTROLLERS
+  // ============================================================
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  // ============================================================
+  // VARIABLES
+  // ============================================================
 
   bool _passwordVisible = false;
   bool _loading = false;
@@ -30,12 +40,12 @@ class _LoginScreenState extends State<LoginScreen> {
   // ============================================================
 
   Future<void> _loginUser() async {
-    // Validate email and password fields
-    if (!_formKey.currentState!.validate()) {
+    // Validate form
+    if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
 
-    // Remove keyboard
+    // Hide keyboard
     FocusScope.of(context).unfocus();
 
     setState(() {
@@ -44,13 +54,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // ========================================================
-      // STEP 1: LOGIN WITH FIREBASE AUTHENTICATION
+      // STEP 1: GET LOGIN INFORMATION
       // ========================================================
 
       final String email =
       _emailController.text.trim().toLowerCase();
 
-      final String password = _passwordController.text;
+      final String password =
+          _passwordController.text;
+
+      // ========================================================
+      // STEP 2: LOGIN WITH FIREBASE AUTHENTICATION
+      // ========================================================
 
       final UserCredential userCredential =
       await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -61,99 +76,141 @@ class _LoginScreenState extends State<LoginScreen> {
       final User? user = userCredential.user;
 
       if (user == null) {
-        _showMessage('Unable to login. Please try again.');
+        if (mounted) {
+          _showMessage(
+            'Unable to login. Please try again.',
+            isSuccess: false,
+          );
+        }
         return;
       }
 
-      // ========================================================
-      // STEP 2: GET USER DATA FROM FIRESTORE
-      // ========================================================
-
-      final DocumentSnapshot<Map<String, dynamic>> userDocument =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      // ========================================================
-      // STEP 3: CHECK USER DOCUMENT
-      // ========================================================
-
-      if (!userDocument.exists) {
-        _showMessage(
-          'User profile not found. Please contact administrator.',
-        );
-
-        await FirebaseAuth.instance.signOut();
-        return;
-      }
-
-      // ========================================================
-      // STEP 4: GET USER DATA
-      // ========================================================
-
-      final Map<String, dynamic>? data = userDocument.data();
-
-      if (data == null) {
-        _showMessage(
-          'User data is missing. Please contact administrator.',
-        );
-
-        await FirebaseAuth.instance.signOut();
-        return;
-      }
-
-      // Get role from Firestore
-      final String role =
-          data['role']?.toString().trim().toLowerCase() ?? '';
-
-      debugPrint('Logged in user: ${user.email}');
+      debugPrint('Login successful');
+      debugPrint('User Email: ${user.email}');
       debugPrint('User UID: ${user.uid}');
+
+      // ========================================================
+      // STEP 3: GET USER DATA FROM REALTIME DATABASE
+      // ========================================================
+
+      final DatabaseReference userReference =
+      FirebaseDatabase.instance.ref('users/${user.uid}');
+
+      final DataSnapshot snapshot =
+      await userReference.get();
+
+      // ========================================================
+      // STEP 4: CHECK USER PROFILE
+      // ========================================================
+
+      if (!snapshot.exists) {
+        if (mounted) {
+          _showMessage(
+            'User profile not found. Please contact administrator.',
+            isSuccess: false,
+          );
+        }
+
+        await FirebaseAuth.instance.signOut();
+        return;
+      }
+
+      // ========================================================
+      // STEP 5: READ USER DATA
+      // ========================================================
+
+      final dynamic rawData = snapshot.value;
+
+      if (rawData == null || rawData is! Map) {
+        if (mounted) {
+          _showMessage(
+            'User data is missing. Please contact administrator.',
+            isSuccess: false,
+          );
+        }
+
+        await FirebaseAuth.instance.signOut();
+        return;
+      }
+
+      // Convert Firebase map to normal Dart map
+      final Map<String, dynamic> userData =
+      Map<String, dynamic>.from(
+        rawData.map(
+              (key, value) => MapEntry(
+            key.toString(),
+            value,
+          ),
+        ),
+      );
+
+      // ========================================================
+      // STEP 6: GET ROLE
+      // ========================================================
+
+      final String role =
+          userData['role']?.toString().trim().toLowerCase() ?? '';
+
       debugPrint('User Role: $role');
+
+      // ========================================================
+      // STEP 7: CHECK ROLE
+      // ========================================================
 
       if (!mounted) return;
 
-      // ========================================================
-      // STEP 5: NAVIGATE ACCORDING TO ROLE
-      // ========================================================
+      switch (role) {
+      // ======================================================
+      // STUDENT
+      // ======================================================
 
-      if (role == 'student') {
-        // Student Dashboard
+        case 'student':
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+              const StudentDashboardScreen(),
+            ),
+          );
+          break;
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-            const StudentDashboardScreen(),
-          ),
-        );
-      } else if (role == 'teacher') {
-        // Teacher Dashboard
+      // ======================================================
+      // TEACHER
+      // ======================================================
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-            const TeacherDashboard(),
-          ),
-        );
-      } else if (role == 'admin') {
-        // Admin Dashboard
-        //
-        // We don't have your AdminDashboardScreen yet.
-        // For now show a message.
+        case 'teacher':
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+              const TeacherDashboard(),
+            ),
+          );
+          break;
 
-        _showMessage(
-          'Admin login successful, but Admin Dashboard is not created yet.',
-        );
-      } else {
-        // Unknown role
+      // ======================================================
+      // ADMIN
+      // ======================================================
 
-        _showMessage(
-          'Invalid user role. Please contact administrator.',
-        );
+        case 'admin':
+          _showMessage(
+            'Admin login successful, but Admin Dashboard is not created yet.',
+            isSuccess: true,
+          );
+          break;
 
-        await FirebaseAuth.instance.signOut();
+      // ======================================================
+      // UNKNOWN ROLE
+      // ======================================================
+
+        default:
+          _showMessage(
+            'Invalid user role. Please contact administrator.',
+            isSuccess: false,
+          );
+
+          await FirebaseAuth.instance.signOut();
+          break;
       }
     }
 
@@ -162,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // ============================================================
 
     on FirebaseAuthException catch (e) {
-      String message = 'Login failed';
+      String message = 'Login failed.';
 
       switch (e.code) {
         case 'user-not-found':
@@ -195,17 +252,25 @@ class _LoginScreenState extends State<LoginScreen> {
           'Network error. Please check your internet connection.';
           break;
 
+        case 'operation-not-allowed':
+          message =
+          'Email/Password sign-in is not enabled in Firebase.';
+          break;
+
         default:
           message = e.message ?? 'Login failed.';
       }
 
       if (mounted) {
-        _showMessage(message);
+        _showMessage(
+          message,
+          isSuccess: false,
+        );
       }
     }
 
     // ============================================================
-    // OTHER ERRORS
+    // REALTIME DATABASE / OTHER ERRORS
     // ============================================================
 
     catch (e) {
@@ -214,6 +279,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         _showMessage(
           'An unexpected error occurred. Please try again.',
+          isSuccess: false,
         );
       }
     }
@@ -235,18 +301,25 @@ class _LoginScreenState extends State<LoginScreen> {
   // SHOW MESSAGE
   // ============================================================
 
-  void _showMessage(String message) {
+  void _showMessage(
+      String message, {
+        required bool isSuccess,
+      }) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor:
+          isSuccess ? Colors.green : Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
-      ),
-    );
+      );
   }
 
   // ============================================================
@@ -257,6 +330,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+
     super.dispose();
   }
 
@@ -277,9 +351,11 @@ class _LoginScreenState extends State<LoginScreen> {
             key: _formKey,
 
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
 
               children: [
+
                 const SizedBox(height: 30),
 
                 // ==================================================
@@ -293,7 +369,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     decoration: BoxDecoration(
                       color: const Color(0xFF1355D6),
-                      borderRadius: BorderRadius.circular(22),
+                      borderRadius:
+                      BorderRadius.circular(22),
                     ),
 
                     child: const Icon(
@@ -353,18 +430,23 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _emailController,
 
-                  keyboardType: TextInputType.emailAddress,
+                  keyboardType:
+                  TextInputType.emailAddress,
 
-                  textInputAction: TextInputAction.next,
+                  textInputAction:
+                  TextInputAction.next,
 
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
+                    if (value == null ||
+                        value.trim().isEmpty) {
                       return 'Please enter your email';
                     }
 
-                    final String email = value.trim();
+                    final String email =
+                    value.trim();
 
-                    final RegExp emailRegExp = RegExp(
+                    final RegExp emailRegExp =
+                    RegExp(
                       r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
                     );
 
@@ -375,7 +457,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     return null;
                   },
 
-                  decoration: _buildInputDecoration(
+                  decoration:
+                  _buildInputDecoration(
                     hintText: 'Enter your email',
                     icon: Icons.email_outlined,
                   ),
@@ -400,9 +483,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _passwordController,
 
-                  obscureText: !_passwordVisible,
+                  obscureText:
+                  !_passwordVisible,
 
-                  textInputAction: TextInputAction.done,
+                  textInputAction:
+                  TextInputAction.done,
 
                   onFieldSubmitted: (_) {
                     if (!_loading) {
@@ -411,7 +496,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
 
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
+                    if (value == null ||
+                        value.isEmpty) {
                       return 'Please enter your password';
                     }
 
@@ -422,11 +508,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     return null;
                   },
 
-                  decoration: _buildInputDecoration(
-                    hintText: 'Enter your password',
-                    icon: Icons.lock_outline,
+                  decoration:
+                  _buildInputDecoration(
+                    hintText:
+                    'Enter your password',
 
-                    suffixIcon: IconButton(
+                    icon:
+                    Icons.lock_outline,
+
+                    suffixIcon:
+                    IconButton(
                       icon: Icon(
                         _passwordVisible
                             ? Icons.visibility
@@ -450,7 +541,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 // ==================================================
 
                 Align(
-                  alignment: Alignment.centerRight,
+                  alignment:
+                  Alignment.centerRight,
 
                   child: TextButton(
                     onPressed: _loading
@@ -469,8 +561,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       'Forgot Password?',
 
                       style: TextStyle(
-                        color: Color(0xFF1355D6),
-                        fontWeight: FontWeight.w600,
+                        color:
+                        Color(0xFF1355D6),
+                        fontWeight:
+                        FontWeight.w600,
                       ),
                     ),
                   ),
@@ -487,15 +581,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   height: 55,
 
                   child: ElevatedButton(
-                    onPressed: _loading ? null : _loginUser,
+                    onPressed:
+                    _loading
+                        ? null
+                        : _loginUser,
 
-                    style: ElevatedButton.styleFrom(
+                    style:
+                    ElevatedButton.styleFrom(
                       backgroundColor:
                       const Color(0xFF1355D6),
 
-                      foregroundColor: Colors.white,
+                      foregroundColor:
+                      Colors.white,
 
-                      shape: RoundedRectangleBorder(
+                      shape:
+                      RoundedRectangleBorder(
                         borderRadius:
                         BorderRadius.circular(14),
                       ),
@@ -518,7 +618,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       style: TextStyle(
                         fontSize: 17,
-                        fontWeight: FontWeight.bold,
+                        fontWeight:
+                        FontWeight.bold,
                       ),
                     ),
                   ),
@@ -535,6 +636,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   MainAxisAlignment.center,
 
                   children: [
+
                     const Text(
                       "Don't have an account?",
 
@@ -560,8 +662,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         'Register',
 
                         style: TextStyle(
-                          color: Color(0xFF1355D6),
-                          fontWeight: FontWeight.bold,
+                          color:
+                          Color(0xFF1355D6),
+                          fontWeight:
+                          FontWeight.bold,
                         ),
                       ),
                     ),
@@ -596,19 +700,22 @@ class _LoginScreenState extends State<LoginScreen> {
       fillColor: Colors.white,
 
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+        BorderRadius.circular(14),
 
         borderSide: BorderSide.none,
       ),
 
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+        BorderRadius.circular(14),
 
         borderSide: BorderSide.none,
       ),
 
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+        BorderRadius.circular(14),
 
         borderSide: const BorderSide(
           color: Color(0xFF1355D6),
@@ -617,7 +724,8 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
 
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+        BorderRadius.circular(14),
 
         borderSide: const BorderSide(
           color: Colors.redAccent,
@@ -625,8 +733,10 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
 
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+      focusedErrorBorder:
+      OutlineInputBorder(
+        borderRadius:
+        BorderRadius.circular(14),
 
         borderSide: const BorderSide(
           color: Colors.redAccent,

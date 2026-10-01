@@ -46,15 +46,16 @@ class DefaultFirebaseOptions {
     messagingSenderId: '81730217503',
     projectId: 'studymate-22c94',
     authDomain: 'studymate-22c94.firebaseapp.com',
+    databaseURL: 'https://studymate-22c94-default-rtdb.firebaseio.com', // <-- add this
     storageBucket: 'studymate-22c94.firebasestorage.app',
     measurementId: 'G-K6LN11QVMN',
   );
-
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBJFgRhTkKlfeBbb-qVA2HrPjfHi6uzH5I',
     appId: '1:81730217503:android:aeb0ce57c9308e69a9972a',
     messagingSenderId: '81730217503',
     projectId: 'studymate-22c94',
+    databaseURL: 'https://studymate-22c94-default-rtdb.firebaseio.com', // <-- add
     storageBucket: 'studymate-22c94.firebasestorage.app',
   );
 
@@ -63,10 +64,10 @@ class DefaultFirebaseOptions {
     appId: '1:81730217503:ios:24a533e077cf673aa9972a',
     messagingSenderId: '81730217503',
     projectId: 'studymate-22c94',
+    databaseURL: 'https://studymate-22c94-default-rtdb.firebaseio.com', // <-- add
     storageBucket: 'studymate-22c94.firebasestorage.app',
     iosBundleId: 'com.example.studyMate',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyBts_1e2uZScpY4ZsZvz6R85lvSN0cT9zg',
     appId: '1:81730217503:ios:24a533e077cf673aa9972a',
