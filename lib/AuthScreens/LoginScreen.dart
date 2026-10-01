@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-
 import 'package:study_mate/StudentScreens/StudentDashboardScreen.dart';
 import 'package:study_mate/AuthScreens/ForgetPassward.dart';
 import 'package:study_mate/AuthScreens/RegisterScreen.dart';
