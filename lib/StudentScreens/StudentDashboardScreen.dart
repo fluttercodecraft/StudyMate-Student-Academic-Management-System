@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:study_mate/AuthScreens/LoginScreen.dart';
 import 'package:study_mate/StudentScreens/courcesScreen.dart';
@@ -8,37 +9,53 @@ class StudentDashboardScreen extends StatelessWidget {
   const StudentDashboardScreen({super.key});
 
   static const Color primary = Color(0xFF1355D6);
-  static const Color background = Color(0xFFF5F7FB);
+  static const Color primaryDark = Color(0xFF0B3A9E);
+  static const Color background = Color(0xFFF4F6FB);
   static const Color textDark = Color(0xFF1F2937);
-  static const Color border = Color(0xFFE6EAF0);
+  static const Color textGrey = Color(0xFF6B7280);
 
+  // ---------- helpers ----------
   String _firstLetter(String name) {
-    final value = name.trim();
-    if (value.isEmpty) return 'S';
-    return value[0].toUpperCase();
+    final v = name.trim();
+    return v.isEmpty ? 'S' : v[0].toUpperCase();
   }
 
-  DateTime? _toDate(dynamic value) {
-    if (value is Timestamp) {
-      return value.toDate();
-    }
-    return null;
+  String _greeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+  DateTime? _toDate(dynamic v) => v is Timestamp ? v.toDate() : null;
+
+  String _formatDate(DateTime d) {
+    const m = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${d.day} ${m[d.month - 1]}';
   }
 
+  BoxDecoration _card() => BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(18),
+    boxShadow: const [
+      BoxShadow(
+        color: Color(0x0F1355D6),
+        blurRadius: 14,
+        offset: Offset(0, 5),
+      ),
+    ],
+  );
+
+  // ---------- build ----------
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(
-          child: Text('Please log in again.'),
-        ),
-      );
+      return const Scaffold(body: Center(child: Text('Please log in again.')));
     }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -46,30 +63,16 @@ class StudentDashboardScreen extends StatelessWidget {
           .collection('users')
           .doc(user.uid)
           .snapshots(),
-      builder: (context, userSnapshot) {
-        final userData = userSnapshot.data?.data() ?? {};
-
-        final name = (userData['name'] ??
-            user.displayName ??
-            'Student')
-            .toString();
-
-        final email = (userData['email'] ??
-            user.email ??
-            'No email')
-            .toString();
-
-        final photoUrl =
-        (userData['profileImageUrl'] ?? '').toString();
+      builder: (context, snap) {
+        final data = snap.data?.data() ?? {};
+        final name = (data['name'] ?? user.displayName ?? 'Student').toString();
+        final email = (data['email'] ?? user.email ?? 'No email').toString();
+        final photoUrl = (data['profileImageUrl'] ?? '').toString();
 
         return Scaffold(
           backgroundColor: background,
-          appBar: _buildAppBar(
-            context,
-            name,
-            photoUrl,
-          ),
           body: RefreshIndicator(
+            color: primary,
             onRefresh: () async {
               await FirebaseFirestore.instance
                   .collection('users')
@@ -78,96 +81,29 @@ class StudentDashboardScreen extends StatelessWidget {
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 30),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _welcomeCard(name),
-                  const SizedBox(height: 22),
-
-                  const Text(
-                    "Today's Overview",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: textDark,
+                  _header(context, user.uid, name, photoUrl),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 22, 18, 30),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _sectionTitle('Study Tools'),
+                        _studyTools(context),
+                        const SizedBox(height: 26),
+                        _sectionTitle("Today's Classes"),
+                        _todayClasses(user.uid),
+                        const SizedBox(height: 26),
+                        _sectionTitle('Upcoming Assignments'),
+                        _assignments(user.uid),
+                        const SizedBox(height: 26),
+                        _sectionTitle('Quizzes'),
+                        _quizzes(user.uid),
+                        const SizedBox(height: 26),
+                        _accountCard(context, name, email, photoUrl),
+                      ],
                     ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _overview(
-                    context,
-                    user.uid,
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  const Text(
-                    "Today's Classes",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: textDark,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _todayClasses(user.uid),
-
-                  const SizedBox(height: 24),
-
-                  const Text(
-                    'Upcoming Assignments',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: textDark,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _assignments(user.uid),
-
-                  const SizedBox(height: 24),
-
-                  const Text(
-                    "Today's Quizzes",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: textDark,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _quizzes(user.uid),
-
-                  const SizedBox(height: 24),
-
-                  const Text(
-                    'Study Tools',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: textDark,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _studyTools(context),
-
-                  const SizedBox(height: 24),
-
-                  _accountCard(
-                    context,
-                    name,
-                    email,
-                    photoUrl,
                   ),
                 ],
               ),
@@ -178,218 +114,578 @@ class StudentDashboardScreen extends StatelessWidget {
     );
   }
 
-  PreferredSizeWidget _buildAppBar(
-      BuildContext context,
-      String name,
-      String photoUrl,
-      ) {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      title: const Column(
+  // ---------- header ----------
+  Widget _header(
+      BuildContext context, String uid, String name, String photoUrl) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(
+          20, MediaQuery.of(context).padding.top + 16, 20, 24),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [primary, primaryDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'StudyMate',
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.pushNamed(context, '/studentProfile'),
+                child: Container(
+                  padding: const EdgeInsets.all(2.5),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: CircleAvatar(
+                    radius: 24,
+                    backgroundColor: const Color(0xFFE8EFFF),
+                    backgroundImage:
+                    photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                    child: photoUrl.isEmpty
+                        ? Text(
+                      _firstLetter(name),
+                      style: const TextStyle(
+                        color: primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    )
+                        : null,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _greeting(),
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 12),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 19,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Material(
+                color: Colors.white24,
+                shape: const CircleBorder(),
+                child: IconButton(
+                  onPressed: () => _showNotifications(context),
+                  icon: const Icon(Icons.notifications_none_rounded,
+                      color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          const Text(
+            'Stay organized and\nkeep learning 🚀',
             style: TextStyle(
-              color: primary,
-              fontSize: 20,
+              color: Colors.white,
+              fontSize: 22,
+              height: 1.3,
               fontWeight: FontWeight.bold,
             ),
           ),
-          Text(
-            'Student Dashboard',
-            style: TextStyle(
-              color: Colors.grey,
-              fontSize: 12,
-            ),
-          ),
+          const SizedBox(height: 20),
+          _stats(uid),
         ],
       ),
-      actions: [
-        IconButton(
-          onPressed: () {
-            _showNotifications(context);
-          },
-          icon: const Icon(
-            Icons.notifications_none_rounded,
-            color: textDark,
-            size: 27,
-          ),
-        ),
+    );
+  }
 
-        GestureDetector(
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              '/studentProfile',
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.only(right: 14),
-            child: CircleAvatar(
-              radius: 19,
-              backgroundColor: const Color(0xFFE8EFFF),
-              backgroundImage: photoUrl.isNotEmpty
-                  ? NetworkImage(photoUrl)
-                  : null,
-              child: photoUrl.isEmpty
-                  ? Text(
-                _firstLetter(name),
-                style: const TextStyle(
-                  color: primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              )
-                  : null,
-            ),
+  Widget _stats(String uid) {
+    return Row(
+      children: [
+        Expanded(
+          // Courses live in Realtime Database
+          child: StreamBuilder<DatabaseEvent>(
+            stream: FirebaseDatabase.instance.ref('courses').onValue,
+            builder: (context, snap) {
+              final v = snap.data?.snapshot.value;
+              final count = v is Map ? v.length : 0;
+              return _statCard(Icons.menu_book_rounded, '$count', 'Courses');
+            },
           ),
         ),
+        const SizedBox(width: 10),
+        Expanded(child: _firestoreStat(uid, 'assignments', Icons.assignment_rounded, 'Assignments')),
+        const SizedBox(width: 10),
+        Expanded(child: _firestoreStat(uid, 'quizzes', Icons.quiz_rounded, 'Quizzes')),
       ],
     );
   }
 
-  Widget _welcomeCard(String name) {
+  Widget _firestoreStat(
+      String uid, String collection, IconData icon, String label) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection(collection)
+          .where('studentIds', arrayContains: uid)
+          .snapshots(),
+      builder: (context, snap) =>
+          _statCard(icon, '${snap.data?.docs.length ?? 0}', label),
+    );
+  }
+
+  Widget _statCard(IconData icon, String number, String label) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        color: primary,
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white.withOpacity(0.16),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white24),
       ),
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.white, size: 22),
+          const SizedBox(height: 6),
+          Text(
+            number,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(label,
+              style: const TextStyle(color: Colors.white70, fontSize: 11)),
+        ],
+      ),
+    );
+  }
+
+  // ---------- sections ----------
+  Widget _sectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
+          Container(
+            width: 4,
+            height: 18,
+            decoration: BoxDecoration(
+              color: primary,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+              color: textDark,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _studyTools(BuildContext context) {
+    final tools = <_Tool>[
+      _Tool(Icons.menu_book_rounded, 'Courses', const Color(0xFF1355D6),
+          const Color(0xFFE8EFFF), () {
+            Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const CoursesScreen()));
+          }),
+      _Tool(Icons.assignment_rounded, 'Assignments', const Color(0xFFF59E0B),
+          const Color(0xFFFEF3C7),
+              () => Navigator.pushNamed(context, '/studentAssignments')),
+      _Tool(Icons.quiz_rounded, 'Quizzes', const Color(0xFF8B5CF6),
+          const Color(0xFFEDE9FE),
+              () => Navigator.pushNamed(context, '/studentQuizzes')),
+      _Tool(Icons.fact_check_rounded, 'Attendance', const Color(0xFF10B981),
+          const Color(0xFFD1FAE5),
+              () => Navigator.pushNamed(context, '/studentAttendance')),
+      _Tool(Icons.bar_chart_rounded, 'Marks', const Color(0xFFEF4444),
+          const Color(0xFFFEE2E2),
+              () => Navigator.pushNamed(context, '/studentMarks')),
+      _Tool(Icons.calendar_month_rounded, 'Timetable', const Color(0xFF0EA5E9),
+          const Color(0xFFE0F2FE),
+              () => Navigator.pushNamed(context, '/studentTimetable')),
+      _Tool(Icons.sticky_note_2_rounded, 'Notes', const Color(0xFFEC4899),
+          const Color(0xFFFCE7F3),
+              () => Navigator.pushNamed(context, '/studentNotes')),
+    ];
+
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 4,
+      mainAxisSpacing: 14,
+      crossAxisSpacing: 10,
+      childAspectRatio: .78,
+      children: tools.map(_toolItem).toList(),
+    );
+  }
+
+  Widget _toolItem(_Tool t) {
+    return GestureDetector(
+      onTap: t.onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: t.bg,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(t.icon, color: t.color, size: 28),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            t.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: textDark,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------- classes ----------
+  Widget _todayClasses(String uid) {
+    final now = DateTime.now();
+    final start = Timestamp.fromDate(DateTime(now.year, now.month, now.day));
+    final end = Timestamp.fromDate(DateTime(now.year, now.month, now.day + 1));
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('classes')
+          .where('studentIds', arrayContains: uid)
+          .where('startAt', isGreaterThanOrEqualTo: start)
+          .where('startAt', isLessThan: end)
+          .orderBy('startAt')
+          .snapshots(),
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return _emptyCard(Icons.error_outline_rounded,
+              "Could not load today's classes.");
+        }
+        if (!snap.hasData) return _loadingCard();
+        if (snap.data!.docs.isEmpty) {
+          return _emptyCard(
+              Icons.free_breakfast_rounded, 'No classes scheduled today.');
+        }
+
+        return Column(
+          children: snap.data!.docs.map((doc) {
+            final d = doc.data();
+            final subject = (d['subject'] ?? 'Class').toString();
+            final teacher = (d['teacher'] ?? '').toString();
+            final room = (d['room'] ?? '').toString();
+            final s = _toDate(d['startAt']);
+            final e = _toDate(d['endAt']);
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: _card(),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: primary,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(subject,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14)),
+                        const SizedBox(height: 4),
+                        Text(
+                          [
+                            if (teacher.isNotEmpty) teacher,
+                            if (room.isNotEmpty) 'Room $room',
+                          ].join('  •  '),
+                          style: const TextStyle(
+                              color: textGrey, fontSize: 11.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (s != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8EFFF),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        e == null
+                            ? TimeOfDay.fromDateTime(s).format(context)
+                            : '${TimeOfDay.fromDateTime(s).format(context)}\n'
+                            '${TimeOfDay.fromDateTime(e).format(context)}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: primary,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  // ---------- assignments ----------
+  Widget _assignments(String uid) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('assignments')
+          .where('studentIds', arrayContains: uid)
+          .orderBy('dueDate')
+          .limit(10)
+          .snapshots(),
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return _emptyCard(
+              Icons.error_outline_rounded, 'Could not load assignments.');
+        }
+        if (!snap.hasData) return _loadingCard();
+        if (snap.data!.docs.isEmpty) {
+          return _emptyCard(
+              Icons.task_alt_rounded, 'No assignments available.');
+        }
+
+        return Column(
+          children: snap.data!.docs.map((doc) {
+            final d = doc.data();
+            final title = (d['title'] ?? 'Assignment').toString();
+            final course = (d['courseName'] ?? '').toString();
+            final due = _toDate(d['dueDate']);
+
+            return _listTile(
+              icon: Icons.assignment_rounded,
+              color: const Color(0xFFF59E0B),
+              bg: const Color(0xFFFEF3C7),
+              title: title,
+              subtitle: course,
+              trailing: due == null
+                  ? null
+                  : Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text('Due',
+                      style: TextStyle(color: textGrey, fontSize: 10)),
+                  Text(
+                    _formatDate(due),
+                    style: const TextStyle(
+                      color: Color(0xFFD97706),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  // ---------- quizzes ----------
+  Widget _quizzes(String uid) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('quizzes')
+          .where('studentIds', arrayContains: uid)
+          .orderBy('date')
+          .limit(10)
+          .snapshots(),
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return _emptyCard(
+              Icons.error_outline_rounded, 'Could not load quizzes.');
+        }
+        if (!snap.hasData) return _loadingCard();
+        if (snap.data!.docs.isEmpty) {
+          return _emptyCard(Icons.lightbulb_outline_rounded,
+              'No quizzes available.');
+        }
+
+        return Column(
+          children: snap.data!.docs.map((doc) {
+            final d = doc.data();
+            final title = (d['title'] ?? 'Quiz').toString();
+            final course = (d['courseName'] ?? '').toString();
+            final q = d['questionCount'];
+            final m = d['durationMinutes'];
+
+            return _listTile(
+              icon: Icons.quiz_rounded,
+              color: const Color(0xFF8B5CF6),
+              bg: const Color(0xFFEDE9FE),
+              title: title,
+              subtitle: course,
+              trailing: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (q != null)
+                    Text('$q Questions',
+                        style:
+                        const TextStyle(color: textGrey, fontSize: 10.5)),
+                  if (m != null)
+                    Text('$m min',
+                        style: const TextStyle(
+                          color: Color(0xFF7C3AED),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        )),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _listTile({
+    required IconData icon,
+    required Color color,
+    required Color bg,
+    required String title,
+    required String subtitle,
+    Widget? trailing,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: _card(),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 23),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Hello, $name 👋',
+                  title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 21,
-                    fontWeight: FontWeight.bold,
-                  ),
+                      fontWeight: FontWeight.bold, fontSize: 13.5),
                 ),
-                const SizedBox(height: 7),
-                const Text(
-                  'Stay organized and keep learning.',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
+                if (subtitle.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                        const TextStyle(color: textGrey, fontSize: 11.5)),
                   ),
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'Learn Smarter',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              color: Colors.white24,
-              borderRadius: BorderRadius.circular(17),
-            ),
-            child: const Icon(
-              Icons.school_rounded,
-              color: Colors.white,
-              size: 32,
-            ),
-          ),
+          if (trailing != null) trailing,
         ],
       ),
     );
   }
 
-  Widget _overview(
-      BuildContext context,
-      String studentId,
-      ) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('courses')
-          .where('studentIds', arrayContains: studentId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        final courses = snapshot.data?.docs.length ?? 0;
-
-        return Row(
-          children: [
-            Expanded(
-              child: _overviewCard(
-                Icons.menu_book_rounded,
-                '$courses',
-                'Courses',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _countAssignments(studentId),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _countQuizzes(studentId),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _overviewCard(
-      IconData icon,
-      String number,
-      String title,
-      ) {
+  // ---------- account ----------
+  Widget _accountCard(
+      BuildContext context, String name, String email, String photoUrl) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: 14,
-        horizontal: 8,
-      ),
-      decoration: _cardDecoration(),
-      child: Column(
+      padding: const EdgeInsets.all(14),
+      decoration: _card(),
+      child: Row(
         children: [
-          Icon(
-            icon,
-            color: primary,
-            size: 22,
+          CircleAvatar(
+            radius: 23,
+            backgroundColor: const Color(0xFFE8EFFF),
+            backgroundImage:
+            photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+            child: photoUrl.isEmpty
+                ? Text(_firstLetter(name),
+                style: const TextStyle(
+                    color: primary, fontWeight: FontWeight.bold))
+                : null,
           ),
-          const SizedBox(height: 7),
-          Text(
-            number,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 3),
+                Text(email,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: textGrey, fontSize: 12)),
+              ],
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.grey,
-              fontSize: 11,
+          Material(
+            color: const Color(0xFFFEE2E2),
+            borderRadius: BorderRadius.circular(12),
+            child: IconButton(
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                if (!context.mounted) return;
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => LoginScreen()),
+                      (route) => false,
+                );
+              },
+              icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
             ),
           ),
         ],
@@ -397,520 +693,29 @@ class StudentDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _countAssignments(String studentId) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('assignments')
-          .where('studentIds', arrayContains: studentId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        return _overviewCard(
-          Icons.assignment_rounded,
-          '${snapshot.data?.docs.length ?? 0}',
-          'Assignments',
-        );
-      },
-    );
-  }
-
-  Widget _countQuizzes(String studentId) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('quizzes')
-          .where('studentIds', arrayContains: studentId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        return _overviewCard(
-          Icons.quiz_rounded,
-          '${snapshot.data?.docs.length ?? 0}',
-          'Quizzes',
-        );
-      },
-    );
-  }
-
-  Widget _todayClasses(String studentId) {
-    final now = DateTime.now();
-
-    final start = Timestamp.fromDate(
-      DateTime(now.year, now.month, now.day),
-    );
-
-    final end = Timestamp.fromDate(
-      DateTime(now.year, now.month, now.day + 1),
-    );
-
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('classes')
-          .where(
-        'studentIds',
-        arrayContains: studentId,
-      )
-          .where(
-        'startAt',
-        isGreaterThanOrEqualTo: start,
-      )
-          .where(
-        'startAt',
-        isLessThan: end,
-      )
-          .orderBy('startAt')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return _emptyCard(
-            'Could not load today\'s classes.',
-          );
-        }
-
-        if (!snapshot.hasData) {
-          return _loadingCard();
-        }
-
-        if (snapshot.data!.docs.isEmpty) {
-          return _emptyCard(
-            'No classes scheduled today.',
-          );
-        }
-
-        return Column(
-          children: snapshot.data!.docs.map((doc) {
-            final data = doc.data();
-
-            final subject =
-            (data['subject'] ?? 'Class').toString();
-
-            final teacher =
-            (data['teacher'] ?? '').toString();
-
-            final room =
-            (data['room'] ?? '').toString();
-
-            final startTime =
-            _toDate(data['startAt']);
-
-            final endTime =
-            _toDate(data['endAt']);
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: _cardDecoration(),
-              child: Row(
-                children: [
-                  _iconBox(
-                    Icons.menu_book_rounded,
-                  ),
-                  const SizedBox(width: 12),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          subject,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-
-                        if (teacher.isNotEmpty)
-                          Padding(
-                            padding:
-                            const EdgeInsets.only(top: 4),
-                            child: Text(
-                              teacher,
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-
-                        if (room.isNotEmpty)
-                          Padding(
-                            padding:
-                            const EdgeInsets.only(top: 4),
-                            child: Text(
-                              'Room $room',
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-
-                  if (startTime != null)
-                    Text(
-                      endTime == null
-                          ? TimeOfDay.fromDateTime(
-                        startTime,
-                      ).format(context)
-                          : '${TimeOfDay.fromDateTime(startTime).format(context)}\n'
-                          '${TimeOfDay.fromDateTime(endTime).format(context)}',
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(
-                        color: primary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                ],
-              ),
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
-
-  Widget _assignments(String studentId) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('assignments')
-          .where(
-        'studentIds',
-        arrayContains: studentId,
-      )
-          .orderBy('dueDate')
-          .limit(10)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return _emptyCard(
-            'Could not load assignments.',
-          );
-        }
-
-        if (!snapshot.hasData) {
-          return _loadingCard();
-        }
-
-        if (snapshot.data!.docs.isEmpty) {
-          return _emptyCard(
-            'No assignments available.',
-          );
-        }
-
-        return Column(
-          children: snapshot.data!.docs.map((doc) {
-            final data = doc.data();
-
-            final title =
-            (data['title'] ?? 'Assignment').toString();
-
-            final course =
-            (data['courseName'] ?? '').toString();
-
-            final due =
-            _toDate(data['dueDate']);
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: _cardDecoration(),
-              child: Row(
-                children: [
-                  _iconBox(
-                    Icons.assignment_rounded,
-                  ),
-                  const SizedBox(width: 12),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                        if (course.isNotEmpty)
-                          Padding(
-                            padding:
-                            const EdgeInsets.only(top: 4),
-                            child: Text(
-                              course,
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-
-                  if (due != null)
-                    Text(
-                      _formatDate(due),
-                      style: const TextStyle(
-                        color: primary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                ],
-              ),
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
-
-  Widget _quizzes(String studentId) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('quizzes')
-          .where(
-        'studentIds',
-        arrayContains: studentId,
-      )
-          .orderBy('date')
-          .limit(10)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return _emptyCard(
-            'Could not load quizzes.',
-          );
-        }
-
-        if (!snapshot.hasData) {
-          return _loadingCard();
-        }
-
-        if (snapshot.data!.docs.isEmpty) {
-          return _emptyCard(
-            'No quizzes available.',
-          );
-        }
-
-        return Column(
-          children: snapshot.data!.docs.map((doc) {
-            final data = doc.data();
-
-            final title =
-            (data['title'] ?? 'Quiz').toString();
-
-            final course =
-            (data['courseName'] ?? '').toString();
-
-            final questions =
-            data['questionCount'];
-
-            final minutes =
-            data['durationMinutes'];
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: _cardDecoration(),
-              child: Row(
-                children: [
-                  _iconBox(
-                    Icons.quiz_rounded,
-                  ),
-                  const SizedBox(width: 12),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                        if (course.isNotEmpty)
-                          Padding(
-                            padding:
-                            const EdgeInsets.only(top: 4),
-                            child: Text(
-                              course,
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-
-                  Column(
-                    crossAxisAlignment:
-                    CrossAxisAlignment.end,
-                    children: [
-                      if (questions != null)
-                        Text(
-                          '$questions Questions',
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 10,
-                          ),
-                        ),
-                      if (minutes != null)
-                        Text(
-                          '$minutes Minutes',
-                          style: const TextStyle(
-                            color: primary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
-
-  Widget _studyTools(BuildContext context) {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 3,
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: .95,
-      children: [
-        _tool(
-          context,
-          Icons.menu_book_rounded,
-          'Courses',
-              () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const CoursesScreen(),
-              ),
-            );
-          },
-        ),
-        _tool(
-          context,
-          Icons.assignment_rounded,
-          'Assignments',
-              () {
-            Navigator.pushNamed(
-              context,
-              '/studentAssignments',
-            );
-          },
-        ),
-        _tool(
-          context,
-          Icons.quiz_rounded,
-          'Quizzes',
-              () {
-            Navigator.pushNamed(
-              context,
-              '/studentQuizzes',
-            );
-          },
-        ),
-        _tool(
-          context,
-          Icons.fact_check_rounded,
-          'Attendance',
-              () {
-            Navigator.pushNamed(
-              context,
-              '/studentAttendance',
-            );
-          },
-        ),
-        _tool(
-          context,
-          Icons.bar_chart_rounded,
-          'Marks',
-              () {
-            Navigator.pushNamed(
-              context,
-              '/studentMarks',
-            );
-          },
-        ),
-        _tool(
-          context,
-          Icons.calendar_month_rounded,
-          'Timetable',
-              () {
-            Navigator.pushNamed(
-              context,
-              '/studentTimetable',
-            );
-          },
-        ),
-        _tool(
-          context,
-          Icons.sticky_note_2_rounded,
-          'Notes',
-              () {
-            Navigator.pushNamed(
-              context,
-              '/studentNotes',
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _tool(
-      BuildContext context,
-      IconData icon,
-      String title,
-      VoidCallback onTap,
-      ) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(15),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: border),
-          ),
+  // ---------- misc ----------
+  void _showNotifications(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => const SafeArea(
+        child: Padding(
+          padding: EdgeInsets.all(26),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _iconBox(
-                icon,
-                size: 42,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Icon(Icons.notifications_none_rounded,
+                  size: 42, color: primary),
+              SizedBox(height: 12),
+              Text('Notifications',
+                  style:
+                  TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              Text('Your teacher updates will appear here.',
+                  style: TextStyle(color: Colors.grey)),
+              SizedBox(height: 16),
             ],
           ),
         ),
@@ -918,169 +723,45 @@ class StudentDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _accountCard(
-      BuildContext context,
-      String name,
-      String email,
-      String photoUrl,
-      ) {
+  Widget _loadingCard() {
     return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: _cardDecoration(),
-      child: Row(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: _card(),
+      child: const Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2.5, color: primary),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyCard(IconData icon, String text) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      decoration: _card(),
+      child: Column(
         children: [
-          CircleAvatar(
-            radius: 23,
-            backgroundColor: const Color(0xFFE8EFFF),
-            backgroundImage: photoUrl.isNotEmpty
-                ? NetworkImage(photoUrl)
-                : null,
-            child: photoUrl.isEmpty
-                ? Text(
-              _firstLetter(name),
-              style: const TextStyle(
-                color: primary,
-                fontWeight: FontWeight.bold,
-              ),
-            )
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  email,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-
-              if (!context.mounted) return;
-
-              Navigator.push(context, MaterialPageRoute(builder: (context)=>LoginScreen())
-              );
-            },
-            icon: const Icon(
-              Icons.logout_rounded,
-              color: Colors.redAccent,
-            ),
-          ),
+          Icon(icon, color: const Color(0xFFB6C2DA), size: 34),
+          const SizedBox(height: 8),
+          Text(text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: textGrey, fontSize: 13)),
         ],
       ),
     );
   }
+}
 
-  void _showNotifications(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(22),
-        ),
-      ),
-      builder: (_) {
-        return const SafeArea(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Notifications',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 20),
-                Text(
-                  'Your teacher updates will appear here.',
-                  style: TextStyle(
-                    color: Colors.grey,
-                  ),
-                ),
-                SizedBox(height: 20),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
+class _Tool {
+  final IconData icon;
+  final String title;
+  final Color color;
+  final Color bg;
+  final VoidCallback onTap;
 
-  Widget _iconBox(
-      IconData icon, {
-        double size = 46,
-      }) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8EFFF),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Icon(
-        icon,
-        color: primary,
-        size: 22,
-      ),
-    );
-  }
-
-  Widget _loadingCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(25),
-      decoration: _cardDecoration(),
-      child: const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-  }
-
-  Widget _emptyCard(String text) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: _cardDecoration(),
-      child: Center(
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: Colors.grey,
-            fontSize: 13,
-          ),
-        ),
-      ),
-    );
-  }
-
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(15),
-      border: Border.all(
-        color: border,
-      ),
-    );
-  }
+  const _Tool(this.icon, this.title, this.color, this.bg, this.onTap);
 }
