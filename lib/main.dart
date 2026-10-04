@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:study_mate/TeacherScreens/Addcourcesscreen.dart';
+import 'package:study_mate/TeacherScreens/MyCourcesScreen.dart';
 import 'package:study_mate/splashScreen/splashScreen.dart';
 import 'firebase_options.dart';
 Future<void> main() async {
@@ -22,6 +24,10 @@ class StudyMateApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      routes: {
+        '/createCourse': (context) => const AddCourseScreen(),
+        '/teacherCourses': (context) => const MyCoursesScreen(),
+      },
       title: 'StudyMate',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
