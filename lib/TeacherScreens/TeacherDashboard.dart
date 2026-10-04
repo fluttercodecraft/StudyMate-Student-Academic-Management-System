@@ -1,7 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:study_mate/TeacherScreens/Addcourcesscreen.dart';
+import 'package:study_mate/TeacherScreens/AddAssignmentScreen.dart';
+import 'package:study_mate/TeacherScreens/TeacherAssignementScreen.dart';
+
 
 class TeacherDashboard extends StatelessWidget {
   const TeacherDashboard({super.key});
@@ -15,16 +19,19 @@ class TeacherDashboard extends StatelessWidget {
 
   String _greeting() {
     final hour = DateTime.now().hour;
-
-    if (hour < 12) {
-      return 'Good morning';
-    }
-
-    if (hour < 17) {
-      return 'Good afternoon';
-    }
-
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
     return 'Good evening';
+  }
+
+  void _comingSoon(BuildContext context, String feature) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text('$feature is coming soon.')));
+  }
+
+  void _open(BuildContext context, Widget screen) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
   @override
@@ -32,11 +39,7 @@ class TeacherDashboard extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(
-          child: Text('Please log in again.'),
-        ),
-      );
+      return const Scaffold(body: Center(child: Text('Please log in again.')));
     }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -46,48 +49,29 @@ class TeacherDashboard extends StatelessWidget {
           .snapshots(),
       builder: (context, userSnapshot) {
         final data = userSnapshot.data?.data() ?? {};
-
         final teacherName =
-        (data['name'] ?? user.displayName ?? 'Teacher')
-            .toString();
+        (data['name'] ?? user.displayName ?? 'Teacher').toString();
 
         return Scaffold(
           backgroundColor: paper,
           body: SingleChildScrollView(
             child: Column(
               children: [
-                _header(
-                  context,
-                  teacherName,
-                ),
-
+                _header(context, teacherName),
                 Transform.translate(
                   offset: const Offset(0, -36),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                    ),
-                    child: _statsStrip(
-                      user.uid,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _statsStrip(user.uid),
                   ),
                 ),
-
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    20,
-                    0,
-                    20,
-                    32,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                   child: Column(
-                    crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _createContent(context),
-
                       const SizedBox(height: 28),
-
                       const Text(
                         'Your classroom',
                         style: TextStyle(
@@ -96,9 +80,7 @@ class TeacherDashboard extends StatelessWidget {
                           color: ink,
                         ),
                       ),
-
                       const SizedBox(height: 14),
-
                       _classroomTiles(context),
                     ],
                   ),
@@ -111,26 +93,15 @@ class TeacherDashboard extends StatelessWidget {
     );
   }
 
-  Widget _header(
-      BuildContext context,
-      String teacherName,
-      ) {
+  Widget _header(BuildContext context, String teacherName) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        22,
-        0,
-        22,
-        72,
-      ),
+      padding: const EdgeInsets.fromLTRB(22, 0, 22, 72),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            ink,
-            Color(0xFF3B3F8F),
-          ],
+          colors: [ink, Color(0xFF3B3F8F)],
         ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(40),
@@ -142,38 +113,27 @@ class TeacherDashboard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.only(top: 16),
           child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(
-                        context,
-                        '/teacherProfile',
-                      );
-                    },
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/teacherProfile'),
                     child: const CircleAvatar(
                       radius: 23,
                       backgroundColor: Colors.white,
-                      child: Icon(
-                        Icons.person_rounded,
-                        color: ink,
-                      ),
+                      child: Icon(Icons.person_rounded, color: ink),
                     ),
                   ),
-
                   const Spacer(),
-
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white12,
-                      borderRadius:
-                      BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: IconButton(
-                      onPressed: () {},
+                      onPressed: () => _comingSoon(context, 'Notifications'),
                       icon: const Icon(
                         Icons.notifications_none_rounded,
                         color: Colors.white,
@@ -182,19 +142,12 @@ class TeacherDashboard extends StatelessWidget {
                   ),
                 ],
               ),
-
               const SizedBox(height: 28),
-
               Text(
                 '${_greeting()},',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 15,
-                ),
+                style: const TextStyle(color: Colors.white70, fontSize: 15),
               ),
-
               const SizedBox(height: 2),
-
               Text(
                 teacherName,
                 maxLines: 1,
@@ -205,15 +158,10 @@ class TeacherDashboard extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-
               const SizedBox(height: 6),
-
               const Text(
                 'Here is what is happening in your classes.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13.5,
-                ),
+                style: TextStyle(color: Colors.white70, fontSize: 13.5),
               ),
             ],
           ),
@@ -224,9 +172,7 @@ class TeacherDashboard extends StatelessWidget {
 
   Widget _statsStrip(String teacherId) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: 18,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -241,87 +187,72 @@ class TeacherDashboard extends StatelessWidget {
       child: Row(
         children: [
           _teacherCourseCount(teacherId),
-
           _divider(),
-
-          _teacherStudentCount(teacherId),
-
+          _studentCount(),
           _divider(),
-
           _teacherAssignmentCount(teacherId),
         ],
       ),
     );
   }
 
+  /// Courses are stored in Realtime Database.
   Widget _teacherCourseCount(String teacherId) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('courses')
-          .where('teacherId', isEqualTo: teacherId)
-          .snapshots(),
+    return StreamBuilder<DatabaseEvent>(
+      stream: FirebaseDatabase.instance.ref('courses').onValue,
       builder: (context, snapshot) {
-        return _stat(
-          'Courses',
-          '${snapshot.data?.docs.length ?? 0}',
-          violet,
-        );
-      },
-    );
-  }
+        var count = 0;
+        final v = snapshot.data?.snapshot.value;
 
-  Widget _teacherStudentCount(String teacherId) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('courses')
-          .where('teacherId', isEqualTo: teacherId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        final students = <String>{};
-
-        for (final course in snapshot.data?.docs ?? []) {
-          final ids = course.data()['studentIds'];
-
-          if (ids is List) {
-            for (final id in ids) {
-              students.add(id.toString());
+        if (v is Map) {
+          for (final course in v.values) {
+            if (course is Map && course['teacherId']?.toString() == teacherId) {
+              count++;
             }
           }
         }
 
-        return _stat(
-          'Students',
-          '${students.length}',
-          teal,
-        );
+        return _stat('Courses', '$count', violet);
+      },
+    );
+  }
+
+  /// Students are all users with the student role (Realtime Database).
+  Widget _studentCount() {
+    return StreamBuilder<DatabaseEvent>(
+      stream: FirebaseDatabase.instance.ref('users').onValue,
+      builder: (context, snapshot) {
+        var count = 0;
+        final v = snapshot.data?.snapshot.value;
+        if (v is Map) {
+          for (final u in v.values) {
+            if (u is Map && u['role']?.toString().toLowerCase() == 'student') {
+              count++;
+            }
+          }
+        }
+        return _stat('Students', '$count', teal);
       },
     );
   }
 
   Widget _teacherAssignmentCount(String teacherId) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('assignments')
-          .where(
-        'teacherId',
-        isEqualTo: teacherId,
-      )
-          .snapshots(),
+    return StreamBuilder<DatabaseEvent>(
+      stream: FirebaseDatabase.instance.ref('assignments').onValue,
       builder: (context, snapshot) {
-        return _stat(
-          'Assignments',
-          '${snapshot.data?.docs.length ?? 0}',
-          coral,
-        );
+        var count = 0;
+        final v = snapshot.data?.snapshot.value;
+        if (v is Map) {
+          for (final a in v.values) {
+            if (a is Map && a['teacherId']?.toString() == teacherId) count++;
+          }
+        }
+        return _stat('Assignments', '$count', coral);
       },
     );
   }
 
-  Widget _stat(
-      String label,
-      String value,
-      Color color,
-      ) {
+  Widget _stat(String label, String value, Color color) {
     return Expanded(
       child: Column(
         children: [
@@ -336,10 +267,7 @@ class TeacherDashboard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12.5,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -347,20 +275,14 @@ class TeacherDashboard extends StatelessWidget {
   }
 
   Widget _divider() {
-    return Container(
-      width: 1,
-      height: 35,
-      color: Colors.grey.shade200,
-    );
+    return Container(width: 1, height: 35, color: Colors.grey.shade200);
   }
 
   Widget _createContent(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
-          _showCreateMenu(context);
-        },
+        onTap: () => _showCreateMenu(context),
         borderRadius: BorderRadius.circular(26),
         child: Ink(
           padding: const EdgeInsets.all(22),
@@ -369,18 +291,14 @@ class TeacherDashboard extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                coral,
-                Color(0xFFFF9A62),
-              ],
+              colors: [coral, Color(0xFFFF9A62)],
             ),
           ),
           child: const Row(
             children: [
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Create classroom content',
@@ -406,11 +324,7 @@ class TeacherDashboard extends StatelessWidget {
               CircleAvatar(
                 radius: 28,
                 backgroundColor: Colors.white,
-                child: Icon(
-                  Icons.add_rounded,
-                  color: coral,
-                  size: 32,
-                ),
+                child: Icon(Icons.add_rounded, color: coral, size: 32),
               ),
             ],
           ),
@@ -423,9 +337,7 @@ class TeacherDashboard extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(22),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
       builder: (sheetContext) {
         return SafeArea(
@@ -436,71 +348,25 @@ class TeacherDashboard extends StatelessWidget {
               children: [
                 const Text(
                   'Create',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-
                 const SizedBox(height: 18),
-
-                _createOption(
-                  context,
-                  sheetContext,
-                  Icons.menu_book_rounded,
-                  'Course',
-                      () {
-                    Navigator.pop(sheetContext);
-
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AddCourseScreen(),
-                      ),
-                    );
-                  },
-                ),
-                _createOption(
-                  context,
-                  sheetContext,
-                  Icons.assignment_rounded,
-                  'Assignment',
-                      () {
-                    Navigator.pop(sheetContext);
-                    Navigator.pushNamed(
-                      context,
-                      '/teacherAssignments',
-                    );
-                  },
-                ),
-
-                _createOption(
-                  context,
-                  sheetContext,
-                  Icons.quiz_rounded,
-                  'Quiz',
-                      () {
-                    Navigator.pop(sheetContext);
-                    Navigator.pushNamed(
-                      context,
-                      '/teacherQuizzes',
-                    );
-                  },
-                ),
-
-                _createOption(
-                  context,
-                  sheetContext,
-                  Icons.calendar_month_rounded,
-                  'Class',
-                      () {
-                    Navigator.pop(sheetContext);
-                    Navigator.pushNamed(
-                      context,
-                      '/teacherClasses',
-                    );
-                  },
-                ),
+                _createOption(Icons.menu_book_rounded, 'Course', () {
+                  Navigator.pop(sheetContext);
+                  _open(context, const AddCourseScreen());
+                }),
+                _createOption(Icons.assignment_rounded, 'Assignment', () {
+                  Navigator.pop(sheetContext);
+                  _open(context, const AddAssignmentScreen());
+                }),
+                _createOption(Icons.quiz_rounded, 'Quiz', () {
+                  Navigator.pop(sheetContext);
+                  _comingSoon(context, 'Quizzes');
+                }),
+                _createOption(Icons.calendar_month_rounded, 'Class', () {
+                  Navigator.pop(sheetContext);
+                  _comingSoon(context, 'Classes');
+                }),
               ],
             ),
           ),
@@ -509,34 +375,18 @@ class TeacherDashboard extends StatelessWidget {
     );
   }
 
-  Widget _createOption(
-      BuildContext context,
-      BuildContext sheetContext,
-      IconData icon,
-      String title,
-      VoidCallback onTap,
-      ) {
+  Widget _createOption(IconData icon, String title, VoidCallback onTap) {
     return ListTile(
       onTap: onTap,
       leading: CircleAvatar(
-        backgroundColor: violet.withValues(
-          alpha: .1,
-        ),
-        child: Icon(
-          icon,
-          color: violet,
-        ),
+        backgroundColor: violet.withValues(alpha: .1),
+        child: Icon(icon, color: violet),
       ),
       title: Text(
         title,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.bold),
       ),
-      trailing: const Icon(
-        Icons.arrow_forward_ios_rounded,
-        size: 15,
-      ),
+      trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 15),
     );
   }
 
@@ -548,102 +398,55 @@ class TeacherDashboard extends StatelessWidget {
           title: 'My Courses',
           subtitle: 'Create and manage your courses',
           color: violet,
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              '/teacherCourses',
-            );
-          },
+          onTap: () => Navigator.pushNamed(context, '/teacherCourses'),
         ),
-
         const SizedBox(height: 12),
-
         _tile(
           icon: Icons.assignment_rounded,
           title: 'Assignments',
           subtitle: 'Create and review student work',
           color: coral,
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              '/teacherAssignments',
-            );
-          },
+          onTap: () => _open(context, const TeacherAssignmentsScreen()),
         ),
-
         const SizedBox(height: 12),
-
         _tile(
           icon: Icons.quiz_rounded,
           title: 'Quizzes',
           subtitle: 'Create and manage quizzes',
           color: amber,
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              '/teacherQuizzes',
-            );
-          },
+          onTap: () => _comingSoon(context, 'Quizzes'),
         ),
-
         const SizedBox(height: 12),
-
         _tile(
           icon: Icons.fact_check_rounded,
           title: 'Attendance',
           subtitle: 'Record student attendance',
           color: teal,
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              '/teacherAttendance',
-            );
-          },
+          onTap: () => _comingSoon(context, 'Attendance'),
         ),
-
         const SizedBox(height: 12),
-
         _tile(
           icon: Icons.grade_rounded,
           title: 'Marks',
           subtitle: 'Enter and manage student marks',
           color: ink,
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              '/teacherMarks',
-            );
-          },
+          onTap: () => _comingSoon(context, 'Marks'),
         ),
-
         const SizedBox(height: 12),
-
         _tile(
           icon: Icons.calendar_month_rounded,
           title: 'Classes',
           subtitle: 'Create and manage class schedules',
           color: violet,
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              '/teacherClasses',
-            );
-          },
+          onTap: () => _comingSoon(context, 'Classes'),
         ),
-
         const SizedBox(height: 12),
-
         _tile(
           icon: Icons.sticky_note_2_rounded,
           title: 'Notes',
           subtitle: 'Upload learning material',
           color: teal,
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              '/teacherNotes',
-            );
-          },
+          onTap: () => _comingSoon(context, 'Notes'),
         ),
       ],
     );
@@ -666,9 +469,7 @@ class TeacherDashboard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: color.withValues(alpha: .18),
-            ),
+            border: Border.all(color: color.withValues(alpha: .18)),
           ),
           child: Row(
             children: [
@@ -679,18 +480,12 @@ class TeacherDashboard extends StatelessWidget {
                   color: color.withValues(alpha: .12),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  icon,
-                  color: color,
-                ),
+                child: Icon(icon, color: color),
               ),
-
               const SizedBox(width: 14),
-
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
@@ -711,7 +506,6 @@ class TeacherDashboard extends StatelessWidget {
                   ],
                 ),
               ),
-
               const Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 15,
