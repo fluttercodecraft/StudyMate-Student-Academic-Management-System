@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:study_mate/TeacherScreens/Addcourcesscreen.dart';
 
 class TeacherDashboard extends StatelessWidget {
   const TeacherDashboard({super.key});
@@ -450,13 +451,15 @@ class TeacherDashboard extends StatelessWidget {
                   'Course',
                       () {
                     Navigator.pop(sheetContext);
-                    Navigator.pushNamed(
+
+                    Navigator.push(
                       context,
-                      '/createCourse',
+                      MaterialPageRoute(
+                        builder: (context) => const AddCourseScreen(),
+                      ),
                     );
                   },
                 ),
-
                 _createOption(
                   context,
                   sheetContext,
