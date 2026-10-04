@@ -3,7 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:study_mate/AuthScreens/LoginScreen.dart';
+
 import 'package:study_mate/StudentScreens/courcesScreen.dart';
+import 'package:study_mate/TeacherScreens/AddAssignmentScreen.dart';
 
 class StudentDashboardScreen extends StatelessWidget {
   const StudentDashboardScreen({super.key});
@@ -35,6 +37,36 @@ class StudentDashboardScreen extends StatelessWidget {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${d.day} ${m[d.month - 1]}';
+  }
+
+  /// Filters and sorts in the app so Firestore needs no composite index.
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _sortedDocs(
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+      String field, {
+        DateTime? from,
+        DateTime? to,
+        bool upcomingOnly = false,
+        int limit = 10,
+      }) {
+    final now = DateTime.now();
+    final list = docs.where((d) {
+      final t = _toDate(d.data()[field]);
+      if (from != null && to != null) {
+        return t != null && !t.isBefore(from) && t.isBefore(to);
+      }
+      if (upcomingOnly) return t == null || !t.isBefore(now);
+      return true;
+    }).toList();
+
+    list.sort((a, b) {
+      final x = _toDate(a.data()[field]);
+      final y = _toDate(b.data()[field]);
+      if (x == null && y == null) return 0;
+      if (x == null) return 1;
+      if (y == null) return -1;
+      return x.compareTo(y);
+    });
+    return list.take(limit).toList();
   }
 
   BoxDecoration _card() => BoxDecoration(
@@ -310,7 +342,8 @@ class StudentDashboardScreen extends StatelessWidget {
           }),
       _Tool(Icons.assignment_rounded, 'Assignments', const Color(0xFFF59E0B),
           const Color(0xFFFEF3C7),
-              () => Navigator.pushNamed(context, '/studentAssignments')),
+              () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const AddAssignmentScreen()))),
       _Tool(Icons.quiz_rounded, 'Quizzes', const Color(0xFF8B5CF6),
           const Color(0xFFEDE9FE),
               () => Navigator.pushNamed(context, '/studentQuizzes')),
@@ -381,9 +414,6 @@ class StudentDashboardScreen extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('classes')
           .where('studentIds', arrayContains: uid)
-          .where('startAt', isGreaterThanOrEqualTo: start)
-          .where('startAt', isLessThan: end)
-          .orderBy('startAt')
           .snapshots(),
       builder: (context, snap) {
         if (snap.hasError) {
@@ -391,13 +421,15 @@ class StudentDashboardScreen extends StatelessWidget {
               "Could not load today's classes.");
         }
         if (!snap.hasData) return _loadingCard();
-        if (snap.data!.docs.isEmpty) {
+        final docs = _sortedDocs(snap.data!.docs, 'startAt',
+            from: start.toDate(), to: end.toDate(), limit: 50);
+        if (docs.isEmpty) {
           return _emptyCard(
               Icons.free_breakfast_rounded, 'No classes scheduled today.');
         }
 
         return Column(
-          children: snap.data!.docs.map((doc) {
+          children: docs.map((doc) {
             final d = doc.data();
             final subject = (d['subject'] ?? 'Class').toString();
             final teacher = (d['teacher'] ?? '').toString();
@@ -475,8 +507,6 @@ class StudentDashboardScreen extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('assignments')
           .where('studentIds', arrayContains: uid)
-          .orderBy('dueDate')
-          .limit(10)
           .snapshots(),
       builder: (context, snap) {
         if (snap.hasError) {
@@ -484,13 +514,14 @@ class StudentDashboardScreen extends StatelessWidget {
               Icons.error_outline_rounded, 'Could not load assignments.');
         }
         if (!snap.hasData) return _loadingCard();
-        if (snap.data!.docs.isEmpty) {
+        final docs = _sortedDocs(snap.data!.docs, 'dueDate', upcomingOnly: true);
+        if (docs.isEmpty) {
           return _emptyCard(
-              Icons.task_alt_rounded, 'No assignments available.');
+              Icons.task_alt_rounded, 'No upcoming assignments.');
         }
 
         return Column(
-          children: snap.data!.docs.map((doc) {
+          children: docs.map((doc) {
             final d = doc.data();
             final title = (d['title'] ?? 'Assignment').toString();
             final course = (d['courseName'] ?? '').toString();
@@ -532,8 +563,6 @@ class StudentDashboardScreen extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('quizzes')
           .where('studentIds', arrayContains: uid)
-          .orderBy('date')
-          .limit(10)
           .snapshots(),
       builder: (context, snap) {
         if (snap.hasError) {
@@ -541,13 +570,14 @@ class StudentDashboardScreen extends StatelessWidget {
               Icons.error_outline_rounded, 'Could not load quizzes.');
         }
         if (!snap.hasData) return _loadingCard();
-        if (snap.data!.docs.isEmpty) {
+        final docs = _sortedDocs(snap.data!.docs, 'date', upcomingOnly: true);
+        if (docs.isEmpty) {
           return _emptyCard(Icons.lightbulb_outline_rounded,
-              'No quizzes available.');
+              'No upcoming quizzes.');
         }
 
         return Column(
-          children: snap.data!.docs.map((doc) {
+          children: docs.map((doc) {
             final d = doc.data();
             final title = (d['title'] ?? 'Quiz').toString();
             final course = (d['courseName'] ?? '').toString();
