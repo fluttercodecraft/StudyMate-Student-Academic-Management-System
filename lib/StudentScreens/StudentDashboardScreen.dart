@@ -3,9 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:study_mate/AuthScreens/LoginScreen.dart';
+import 'package:study_mate/StudentScreens/AssignmentScrren.dart';
 
 import 'package:study_mate/StudentScreens/courcesScreen.dart';
-import 'package:study_mate/TeacherScreens/AddAssignmentScreen.dart';
 
 class StudentDashboardScreen extends StatelessWidget {
   const StudentDashboardScreen({super.key});
@@ -29,7 +29,25 @@ class StudentDashboardScreen extends StatelessWidget {
     return 'Good evening';
   }
 
-  DateTime? _toDate(dynamic v) => v is Timestamp ? v.toDate() : null;
+  DateTime? _toDate(dynamic v) {
+    if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
+    if (v is Timestamp) return v.toDate();
+    return null;
+  }
+
+  /// Streams every child of a Realtime Database node as a list of maps.
+  Stream<List<Map<String, dynamic>>> _list(String node) {
+    return FirebaseDatabase.instance.ref(node).onValue.map((e) {
+      final v = e.snapshot.value;
+      final out = <Map<String, dynamic>>[];
+      if (v is Map) {
+        v.forEach((k, val) {
+          if (val is Map) out.add(Map<String, dynamic>.from(val));
+        });
+      }
+      return out;
+    });
+  }
 
   String _formatDate(DateTime d) {
     const m = [
@@ -39,9 +57,8 @@ class StudentDashboardScreen extends StatelessWidget {
     return '${d.day} ${m[d.month - 1]}';
   }
 
-  /// Filters and sorts in the app so Firestore needs no composite index.
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> _sortedDocs(
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  List<Map<String, dynamic>> _sorted(
+      List<Map<String, dynamic>> items,
       String field, {
         DateTime? from,
         DateTime? to,
@@ -49,8 +66,8 @@ class StudentDashboardScreen extends StatelessWidget {
         int limit = 10,
       }) {
     final now = DateTime.now();
-    final list = docs.where((d) {
-      final t = _toDate(d.data()[field]);
+    final list = items.where((d) {
+      final t = _toDate(d[field]);
       if (from != null && to != null) {
         return t != null && !t.isBefore(from) && t.isBefore(to);
       }
@@ -59,8 +76,8 @@ class StudentDashboardScreen extends StatelessWidget {
     }).toList();
 
     list.sort((a, b) {
-      final x = _toDate(a.data()[field]);
-      final y = _toDate(b.data()[field]);
+      final x = _toDate(a[field]);
+      final y = _toDate(b[field]);
       if (x == null && y == null) return 0;
       if (x == null) return 1;
       if (y == null) return -1;
@@ -259,22 +276,18 @@ class StudentDashboardScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        Expanded(child: _firestoreStat(uid, 'assignments', Icons.assignment_rounded, 'Assignments')),
+        Expanded(child: _rtdbStat('assignments', Icons.assignment_rounded, 'Assignments')),
         const SizedBox(width: 10),
-        Expanded(child: _firestoreStat(uid, 'quizzes', Icons.quiz_rounded, 'Quizzes')),
+        Expanded(child: _rtdbStat('quizzes', Icons.quiz_rounded, 'Quizzes')),
       ],
     );
   }
 
-  Widget _firestoreStat(
-      String uid, String collection, IconData icon, String label) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection(collection)
-          .where('studentIds', arrayContains: uid)
-          .snapshots(),
+  Widget _rtdbStat(String node, IconData icon, String label) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _list(node),
       builder: (context, snap) =>
-          _statCard(icon, '${snap.data?.docs.length ?? 0}', label),
+          _statCard(icon, '${snap.data?.length ?? 0}', label),
     );
   }
 
@@ -343,7 +356,7 @@ class StudentDashboardScreen extends StatelessWidget {
       _Tool(Icons.assignment_rounded, 'Assignments', const Color(0xFFF59E0B),
           const Color(0xFFFEF3C7),
               () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const AddAssignmentScreen()))),
+              MaterialPageRoute(builder: (_) => const AssignmentsScreen()))),
       _Tool(Icons.quiz_rounded, 'Quizzes', const Color(0xFF8B5CF6),
           const Color(0xFFEDE9FE),
               () => Navigator.pushNamed(context, '/studentQuizzes')),
@@ -407,30 +420,27 @@ class StudentDashboardScreen extends StatelessWidget {
   // ---------- classes ----------
   Widget _todayClasses(String uid) {
     final now = DateTime.now();
-    final start = Timestamp.fromDate(DateTime(now.year, now.month, now.day));
-    final end = Timestamp.fromDate(DateTime(now.year, now.month, now.day + 1));
+    final start = DateTime(now.year, now.month, now.day);
+    final end = DateTime(now.year, now.month, now.day + 1);
 
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('classes')
-          .where('studentIds', arrayContains: uid)
-          .snapshots(),
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _list('classes'),
       builder: (context, snap) {
         if (snap.hasError) {
           return _emptyCard(Icons.error_outline_rounded,
               "Could not load today's classes.");
         }
         if (!snap.hasData) return _loadingCard();
-        final docs = _sortedDocs(snap.data!.docs, 'startAt',
-            from: start.toDate(), to: end.toDate(), limit: 50);
-        if (docs.isEmpty) {
+
+        final items =
+        _sorted(snap.data!, 'startAt', from: start, to: end, limit: 50);
+        if (items.isEmpty) {
           return _emptyCard(
               Icons.free_breakfast_rounded, 'No classes scheduled today.');
         }
 
         return Column(
-          children: docs.map((doc) {
-            final d = doc.data();
+          children: items.map((d) {
             final subject = (d['subject'] ?? 'Class').toString();
             final teacher = (d['teacher'] ?? '').toString();
             final room = (d['room'] ?? '').toString();
@@ -503,36 +513,31 @@ class StudentDashboardScreen extends StatelessWidget {
 
   // ---------- assignments ----------
   Widget _assignments(String uid) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('assignments')
-          .where('studentIds', arrayContains: uid)
-          .snapshots(),
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _list('assignments'),
       builder: (context, snap) {
         if (snap.hasError) {
           return _emptyCard(
               Icons.error_outline_rounded, 'Could not load assignments.');
         }
         if (!snap.hasData) return _loadingCard();
-        final docs = _sortedDocs(snap.data!.docs, 'dueDate', upcomingOnly: true);
-        if (docs.isEmpty) {
+
+        final items = _sorted(snap.data!, 'dueDate', upcomingOnly: true);
+        if (items.isEmpty) {
           return _emptyCard(
               Icons.task_alt_rounded, 'No upcoming assignments.');
         }
 
         return Column(
-          children: docs.map((doc) {
-            final d = doc.data();
-            final title = (d['title'] ?? 'Assignment').toString();
-            final course = (d['courseName'] ?? '').toString();
+          children: items.map((d) {
             final due = _toDate(d['dueDate']);
 
             return _listTile(
               icon: Icons.assignment_rounded,
               color: const Color(0xFFF59E0B),
               bg: const Color(0xFFFEF3C7),
-              title: title,
-              subtitle: course,
+              title: (d['title'] ?? 'Assignment').toString(),
+              subtitle: (d['courseName'] ?? '').toString(),
               trailing: due == null
                   ? null
                   : Column(
@@ -559,28 +564,23 @@ class StudentDashboardScreen extends StatelessWidget {
 
   // ---------- quizzes ----------
   Widget _quizzes(String uid) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('quizzes')
-          .where('studentIds', arrayContains: uid)
-          .snapshots(),
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _list('quizzes'),
       builder: (context, snap) {
         if (snap.hasError) {
           return _emptyCard(
               Icons.error_outline_rounded, 'Could not load quizzes.');
         }
         if (!snap.hasData) return _loadingCard();
-        final docs = _sortedDocs(snap.data!.docs, 'date', upcomingOnly: true);
-        if (docs.isEmpty) {
-          return _emptyCard(Icons.lightbulb_outline_rounded,
-              'No upcoming quizzes.');
+
+        final items = _sorted(snap.data!, 'date', upcomingOnly: true);
+        if (items.isEmpty) {
+          return _emptyCard(
+              Icons.lightbulb_outline_rounded, 'No upcoming quizzes.');
         }
 
         return Column(
-          children: docs.map((doc) {
-            final d = doc.data();
-            final title = (d['title'] ?? 'Quiz').toString();
-            final course = (d['courseName'] ?? '').toString();
+          children: items.map((d) {
             final q = d['questionCount'];
             final m = d['durationMinutes'];
 
@@ -588,8 +588,8 @@ class StudentDashboardScreen extends StatelessWidget {
               icon: Icons.quiz_rounded,
               color: const Color(0xFF8B5CF6),
               bg: const Color(0xFFEDE9FE),
-              title: title,
-              subtitle: course,
+              title: (d['title'] ?? 'Quiz').toString(),
+              subtitle: (d['courseName'] ?? '').toString(),
               trailing: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
