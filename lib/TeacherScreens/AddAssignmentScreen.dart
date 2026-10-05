@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -11,9 +10,9 @@ class AddAssignmentScreen extends StatefulWidget {
 }
 
 class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
-  static const Color primary = Color(0xFF1355D6);
-  static const Color primaryDark = Color(0xFF0B3A9E);
-  static const Color background = Color(0xFFF4F6FB);
+  static const Color primary = Color(0xFF6C5CE7);
+  static const Color primaryDark = Color(0xFF1B1F3B);
+  static const Color background = Color(0xFFF3F5FA);
   static const Color textDark = Color(0xFF1F2937);
   static const Color textGrey = Color(0xFF6B7280);
 
@@ -112,25 +111,20 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
     try {
       final course = _courses.firstWhere((c) => c['id'] == _courseId);
 
-      // Everyone with the student role gets the assignment.
-      final students = await FirebaseFirestore.instance
-          .collection('users')
-          .where('role', whereIn: ['student', 'Student']).get();
-      final studentIds = students.docs.map((d) => d.id).toList();
-
-      await FirebaseFirestore.instance.collection('assignments').add({
+      final ref = FirebaseDatabase.instance.ref('assignments').push();
+      await ref.set({
+        'assignmentId': ref.key,
         'title': title,
         'description': desc,
         'courseId': _courseId,
         'courseName': course['name'],
-        'dueDate': Timestamp.fromDate(_due!),
-        'studentIds': studentIds,
+        'dueDate': _due!.millisecondsSinceEpoch,
         'teacherId': user.uid,
-        'createdAt': FieldValue.serverTimestamp(),
+        'createdAt': ServerValue.timestamp,
       });
 
       if (!mounted) return;
-      _snack('Assignment sent to ${studentIds.length} student(s).');
+      _snack('Assignment created.');
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
