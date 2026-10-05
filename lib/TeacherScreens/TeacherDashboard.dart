@@ -1,11 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:study_mate/TeacherScreens/AddQuizesScreen.dart';
 import 'package:study_mate/TeacherScreens/Addcourcesscreen.dart';
 import 'package:study_mate/TeacherScreens/AddAssignmentScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherAssignementScreen.dart';
-
+import 'package:study_mate/TeacherScreens/TeacherQuizesScreen.dart';
 
 class TeacherDashboard extends StatelessWidget {
   const TeacherDashboard({super.key});
@@ -42,13 +42,12 @@ class TeacherDashboard extends StatelessWidget {
       return const Scaffold(body: Center(child: Text('Please log in again.')));
     }
 
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .snapshots(),
+    return StreamBuilder<DatabaseEvent>(
+      stream: FirebaseDatabase.instance.ref('users/${user.uid}').onValue,
       builder: (context, userSnapshot) {
-        final data = userSnapshot.data?.data() ?? {};
+        final raw = userSnapshot.data?.snapshot.value;
+        final data =
+        raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
         final teacherName =
         (data['name'] ?? user.displayName ?? 'Teacher').toString();
 
@@ -361,7 +360,7 @@ class TeacherDashboard extends StatelessWidget {
                 }),
                 _createOption(Icons.quiz_rounded, 'Quiz', () {
                   Navigator.pop(sheetContext);
-                  _comingSoon(context, 'Quizzes');
+                  _open(context, const AddQuizScreen());
                 }),
                 _createOption(Icons.calendar_month_rounded, 'Class', () {
                   Navigator.pop(sheetContext);
@@ -414,7 +413,7 @@ class TeacherDashboard extends StatelessWidget {
           title: 'Quizzes',
           subtitle: 'Create and manage quizzes',
           color: amber,
-          onTap: () => _comingSoon(context, 'Quizzes'),
+          onTap: () => _open(context, const TeacherQuizzesScreen()),
         ),
         const SizedBox(height: 12),
         _tile(

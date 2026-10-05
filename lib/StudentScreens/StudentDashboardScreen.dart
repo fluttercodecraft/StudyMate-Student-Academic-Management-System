@@ -3,6 +3,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:study_mate/AuthScreens/LoginScreen.dart';
 import 'package:study_mate/StudentScreens/AssignmentScrren.dart';
+import 'package:study_mate/StudentScreens/QuizesScreen.dart';
 
 import 'package:study_mate/StudentScreens/courcesScreen.dart';
 
@@ -353,7 +354,8 @@ class StudentDashboardScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const AssignmentsScreen()))),
       _Tool(Icons.quiz_rounded, 'Quizzes', const Color(0xFF8B5CF6),
           const Color(0xFFEDE9FE),
-              () => Navigator.pushNamed(context, '/studentQuizzes')),
+              () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const QuizzesScreen()))),
       _Tool(Icons.fact_check_rounded, 'Attendance', const Color(0xFF10B981),
           const Color(0xFFD1FAE5),
               () => Navigator.pushNamed(context, '/studentAttendance')),
