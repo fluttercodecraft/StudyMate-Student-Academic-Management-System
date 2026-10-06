@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:study_mate/AuthScreens/LoginScreen.dart';
 import 'package:study_mate/StudentScreens/AssignmentScrren.dart';
 import 'package:study_mate/StudentScreens/QuizesScreen.dart';
+import 'package:study_mate/StudentScreens/TimetableScreen.dart';
 import 'package:study_mate/StudentScreens/courcesScreen.dart';
 
 class StudentDashboardScreen extends StatelessWidget {
@@ -363,7 +364,8 @@ class StudentDashboardScreen extends StatelessWidget {
               () => Navigator.pushNamed(context, '/studentMarks')),
       _Tool(Icons.calendar_month_rounded, 'Timetable', const Color(0xFF0EA5E9),
           const Color(0xFFE0F2FE),
-              () => Navigator.pushNamed(context, '/studentTimetable')),
+              () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const TimetableScreen()))),
       _Tool(Icons.sticky_note_2_rounded, 'Notes', const Color(0xFFEC4899),
           const Color(0xFFFCE7F3),
               () => Navigator.pushNamed(context, '/studentNotes')),

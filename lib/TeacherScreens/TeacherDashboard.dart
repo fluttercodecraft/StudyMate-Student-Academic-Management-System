@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:study_mate/TeacherScreens/AddQuizesScreen.dart';
 import 'package:study_mate/TeacherScreens/Addcourcesscreen.dart';
 import 'package:study_mate/TeacherScreens/AddAssignmentScreen.dart';
+import 'package:study_mate/TeacherScreens/AddClassScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherAssignementScreen.dart';
+import 'package:study_mate/TeacherScreens/TeacherClassScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherQuizesScreen.dart';
+
 
 class TeacherDashboard extends StatelessWidget {
   const TeacherDashboard({super.key});
@@ -364,7 +367,7 @@ class TeacherDashboard extends StatelessWidget {
                 }),
                 _createOption(Icons.calendar_month_rounded, 'Class', () {
                   Navigator.pop(sheetContext);
-                  _comingSoon(context, 'Classes');
+                  _open(context, const AddClassScreen());
                 }),
               ],
             ),
@@ -437,7 +440,7 @@ class TeacherDashboard extends StatelessWidget {
           title: 'Classes',
           subtitle: 'Create and manage class schedules',
           color: violet,
-          onTap: () => _comingSoon(context, 'Classes'),
+          onTap: () => _open(context, const TeacherClassesScreen()),
         ),
         const SizedBox(height: 12),
         _tile(
