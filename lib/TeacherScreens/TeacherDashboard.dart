@@ -6,9 +6,9 @@ import 'package:study_mate/TeacherScreens/Addcourcesscreen.dart';
 import 'package:study_mate/TeacherScreens/AddAssignmentScreen.dart';
 import 'package:study_mate/TeacherScreens/AddClassScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherAssignementScreen.dart';
+import 'package:study_mate/TeacherScreens/TeacherAtendanceScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherClassScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherQuizesScreen.dart';
-
 
 class TeacherDashboard extends StatelessWidget {
   const TeacherDashboard({super.key});
@@ -424,7 +424,7 @@ class TeacherDashboard extends StatelessWidget {
           title: 'Attendance',
           subtitle: 'Record student attendance',
           color: teal,
-          onTap: () => _comingSoon(context, 'Attendance'),
+          onTap: () => _open(context, const TeacherAttendanceScreen()),
         ),
         const SizedBox(height: 12),
         _tile(
