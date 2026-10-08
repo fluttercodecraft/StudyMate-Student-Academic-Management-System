@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:study_mate/common/AcadmicOption.dart';
+
 
 const Color _ink = Color(0xFF1B1F3B);
 const Color _paper = Color(0xFFF3F5FA);
@@ -104,8 +106,20 @@ Widget _emptyState(IconData icon, String title, String message) {
 // =====================================================================
 //  Step 1: choose a class
 // =====================================================================
-class TeacherAttendanceScreen extends StatelessWidget {
+class TeacherAttendanceScreen extends StatefulWidget {
   const TeacherAttendanceScreen({super.key});
+
+  @override
+  State<TeacherAttendanceScreen> createState() =>
+      _TeacherAttendanceScreenState();
+}
+
+class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
+  String? _dept;
+  int? _sem;
+  String? _section;
+
+  bool get _ready => _dept != null && _sem != null && _section != null;
 
   @override
   Widget build(BuildContext context) {
@@ -116,78 +130,102 @@ class TeacherAttendanceScreen extends StatelessWidget {
       body: Column(
         children: [
           _teacherHeader(context, 'Attendance',
-              subtitle: 'Choose a class to mark'),
-          Expanded(
-            child: user == null
-                ? const Center(child: Text('Please log in again.'))
-                : StreamBuilder<DatabaseEvent>(
-              stream: FirebaseDatabase.instance.ref('classes').onValue,
-              builder: (context, snap) {
-                if (snap.hasError) {
-                  return _emptyState(Icons.error_outline_rounded,
-                      'Unable to load', '${snap.error}');
-                }
-                if (!snap.hasData) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: _violet),
-                  );
-                }
-
-                final raw = snap.data!.snapshot.value;
-                final endOfToday = DateTime.now()
-                    .copyWith(hour: 23, minute: 59, second: 59);
-                final classes = <Map<String, dynamic>>[];
-
-                if (raw is Map) {
-                  raw.forEach((key, value) {
-                    if (value is Map) {
-                      final c = Map<String, dynamic>.from(value);
-                      final s = _toDate(c['startAt']);
-                      if (c['teacherId']?.toString() == user.uid &&
-                          s != null &&
-                          !s.isAfter(endOfToday)) {
-                        c['classId'] = c['classId'] ?? key;
-                        classes.add(c);
-                      }
-                    }
-                  });
-                }
-
-                classes.sort((a, b) => _toDate(b['startAt'])!
-                    .compareTo(_toDate(a['startAt'])!));
-
-                if (classes.isEmpty) {
-                  return _emptyState(
-                    Icons.fact_check_rounded,
-                    'No classes to mark',
-                    'Schedule a class first. Classes up to today appear here.',
-                  );
-                }
-
-                return StreamBuilder<DatabaseEvent>(
-                  stream:
-                  FirebaseDatabase.instance.ref('attendance').onValue,
-                  builder: (context, attSnap) {
-                    final att = attSnap.data?.snapshot.value;
-
-                    return ListView(
-                      padding:
-                      const EdgeInsets.fromLTRB(20, 20, 20, 30),
-                      children: classes.map((c) {
-                        var marked = 0;
-                        if (att is Map && att[c['classId']] is Map) {
-                          marked = (att[c['classId']] as Map).length;
-                        }
-                        return _classCard(context, c, marked);
-                      }).toList(),
-                    );
-                  },
-                );
-              },
+              subtitle: 'Department  →  Semester  →  Section'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
+            child: AcademicPicker(
+              accent: _violet,
+              department: _dept,
+              semester: _sem,
+              section: _section,
+              onDepartment: (v) => setState(() => _dept = v),
+              onSemester: (v) => setState(() => _sem = v),
+              onSection: (v) => setState(() => _section = v),
             ),
+          ),
+          Expanded(
+            child: !_ready
+                ? _emptyState(
+              Icons.touch_app_rounded,
+              'Select a section',
+              'Choose a department, semester and section to see its classes.',
+            )
+                : user == null
+                ? const Center(child: Text('Please log in again.'))
+                : _classList(user.uid),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _classList(String uid) {
+    return StreamBuilder<DatabaseEvent>(
+      stream: FirebaseDatabase.instance.ref('classes').onValue,
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return _emptyState(
+              Icons.error_outline_rounded, 'Unable to load', '${snap.error}');
+        }
+        if (!snap.hasData) {
+          return const Center(
+            child: CircularProgressIndicator(color: _violet),
+          );
+        }
+
+        final raw = snap.data!.snapshot.value;
+        final endOfToday =
+        DateTime.now().copyWith(hour: 23, minute: 59, second: 59);
+        final classes = <Map<String, dynamic>>[];
+
+        if (raw is Map) {
+          raw.forEach((key, value) {
+            if (value is Map) {
+              final c = Map<String, dynamic>.from(value);
+              final s = _toDate(c['startAt']);
+              if (c['teacherId']?.toString() == uid &&
+                  c['department']?.toString() == _dept &&
+                  c['semester']?.toString() == '$_sem' &&
+                  c['section']?.toString() == _section &&
+                  s != null &&
+                  !s.isAfter(endOfToday)) {
+                c['classId'] = c['classId'] ?? key;
+                classes.add(c);
+              }
+            }
+          });
+        }
+
+        classes.sort(
+                (a, b) => _toDate(b['startAt'])!.compareTo(_toDate(a['startAt'])!));
+
+        if (classes.isEmpty) {
+          return _emptyState(
+            Icons.fact_check_rounded,
+            'No classes for this section',
+            'Schedule a class for $_dept • Sem $_sem • Sec $_section first. '
+                'Classes up to today appear here.',
+          );
+        }
+
+        return StreamBuilder<DatabaseEvent>(
+          stream: FirebaseDatabase.instance.ref('attendance').onValue,
+          builder: (context, attSnap) {
+            final att = attSnap.data?.snapshot.value;
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
+              children: classes.map((c) {
+                var marked = 0;
+                if (att is Map && att[c['classId']] is Map) {
+                  marked = (att[c['classId']] as Map).length;
+                }
+                return _classCard(context, c, marked);
+              }).toList(),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -210,7 +248,8 @@ class TeacherAttendanceScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => AttendanceMarkScreen(classData: c)),
+            MaterialPageRoute(
+                builder: (_) => AttendanceMarkScreen(classData: c)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -321,7 +360,8 @@ class _AttendanceMarkScreenState extends State<AttendanceMarkScreen> {
       if (users is Map) {
         users.forEach((uid, value) {
           if (value is Map &&
-              value['role']?.toString().toLowerCase() == 'student') {
+              value['role']?.toString().toLowerCase() == 'student' &&
+              matchesAcademic(widget.classData, value)) {
             final name =
             (value['name'] ?? value['email'] ?? 'Student').toString();
             list.add((id: uid.toString(), name: name));
@@ -389,9 +429,11 @@ class _AttendanceMarkScreenState extends State<AttendanceMarkScreen> {
           _teacherHeader(
             context,
             (widget.classData['subject'] ?? 'Class').toString(),
-            subtitle: s == null
-                ? null
-                : '${_dayLabel(s)}  •  ${TimeOfDay.fromDateTime(s).format(context)}',
+            subtitle: [
+              if (widget.classData['department'] != null)
+                Academic.label(widget.classData),
+              if (s != null) _dayLabel(s),
+            ].join('  •  '),
           ),
           Expanded(child: _body()),
           if (!_loading && _students.isNotEmpty)
@@ -442,7 +484,8 @@ class _AttendanceMarkScreenState extends State<AttendanceMarkScreen> {
       return _emptyState(
         Icons.groups_rounded,
         'No students found',
-        'Students are read from the "users" node where role is "student".',
+        'No student has joined this section yet. Students need the same '
+            'department, semester and section on their profile.',
       );
     }
 

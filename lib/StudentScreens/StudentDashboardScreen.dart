@@ -5,8 +5,10 @@ import 'package:study_mate/AuthScreens/LoginScreen.dart';
 import 'package:study_mate/StudentScreens/AssignmentScrren.dart';
 import 'package:study_mate/StudentScreens/AttandanceScreen.dart';
 import 'package:study_mate/StudentScreens/QuizesScreen.dart';
+
 import 'package:study_mate/StudentScreens/TimetableScreen.dart';
 import 'package:study_mate/StudentScreens/courcesScreen.dart';
+import 'package:study_mate/common/AcadmicOption.dart';
 
 class StudentDashboardScreen extends StatelessWidget {
   const StudentDashboardScreen({super.key});
@@ -134,11 +136,18 @@ class StudentDashboardScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (!hasAcademicProfile(data)) ...[
+                          _academicCard(context, user.uid),
+                          const SizedBox(height: 22),
+                        ] else ...[
+                          _academicChip(data),
+                          const SizedBox(height: 18),
+                        ],
                         _sectionTitle('Study Tools'),
-                        _studyTools(context),
+                        _studyTools(context, data),
                         const SizedBox(height: 26),
                         _sectionTitle("Today's Classes"),
-                        _todayClasses(user.uid),
+                        _todayClasses(user.uid, data),
                         const SizedBox(height: 26),
                         _sectionTitle('Upcoming Assignments'),
                         _assignments(user.uid),
@@ -342,7 +351,7 @@ class StudentDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _studyTools(BuildContext context) {
+  Widget _studyTools(BuildContext context, Map<String, dynamic> profile) {
     final tools = <_Tool>[
       _Tool(Icons.menu_book_rounded, 'Courses', const Color(0xFF1355D6),
           const Color(0xFFE8EFFF), () {
@@ -367,7 +376,8 @@ class StudentDashboardScreen extends StatelessWidget {
       _Tool(Icons.calendar_month_rounded, 'Timetable', const Color(0xFF0EA5E9),
           const Color(0xFFE0F2FE),
               () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const TimetableScreen()))),
+              MaterialPageRoute(
+                  builder: (_) => TimetableScreen()))),
       _Tool(Icons.sticky_note_2_rounded, 'Notes', const Color(0xFFEC4899),
           const Color(0xFFFCE7F3),
               () => Navigator.pushNamed(context, '/studentNotes')),
@@ -417,7 +427,7 @@ class StudentDashboardScreen extends StatelessWidget {
   }
 
   // ---------- classes ----------
-  Widget _todayClasses(String uid) {
+  Widget _todayClasses(String uid, Map<String, dynamic> profile) {
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day);
     final end = DateTime(now.year, now.month, now.day + 1);
@@ -431,8 +441,13 @@ class StudentDashboardScreen extends StatelessWidget {
         }
         if (!snap.hasData) return _loadingCard();
 
-        final items =
-        _sorted(snap.data!, 'startAt', from: start, to: end, limit: 50);
+        final items = _sorted(
+          snap.data!.where((c) => matchesAcademic(c, profile)).toList(),
+          'startAt',
+          from: start,
+          to: end,
+          limit: 50,
+        );
         if (items.isEmpty) {
           return _emptyCard(
               Icons.free_breakfast_rounded, 'No classes scheduled today.');
@@ -661,6 +676,179 @@ class StudentDashboardScreen extends StatelessWidget {
           ),
           if (trailing != null) trailing,
         ],
+      ),
+    );
+  }
+
+  // ---------- academic profile ----------
+  Widget _academicChip(Map<String, dynamic> data) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8EFFF),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.school_rounded, color: primary, size: 19),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              Academic.label(data),
+              style: const TextStyle(
+                color: primary,
+                fontWeight: FontWeight.w600,
+                fontSize: 12.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _academicCard(BuildContext context, String uid) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF3C7),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded,
+              color: Color(0xFFD97706), size: 26),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Complete your profile',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Color(0xFF92400E))),
+                SizedBox(height: 3),
+                Text(
+                  'Add your department, semester and section to see your classes.',
+                  style: TextStyle(
+                      fontSize: 12, color: Color(0xFF92400E), height: 1.4),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () => _openAcademicSheet(context, uid),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD97706),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openAcademicSheet(BuildContext context, String uid) {
+    String? dept;
+    int? sem;
+    String? section;
+    var saving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (ctx, setSheet) => Container(
+          padding: EdgeInsets.fromLTRB(
+              22, 22, 22, MediaQuery.of(ctx).viewInsets.bottom + 22),
+          decoration: const BoxDecoration(
+            color: Color(0xFFF4F6FB),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Your class',
+                    style:
+                    TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                const Text('Pick the department, semester and section you study in.',
+                    style: TextStyle(color: textGrey, fontSize: 12.5)),
+                const SizedBox(height: 18),
+                AcademicPicker(
+                  department: dept,
+                  semester: sem,
+                  section: section,
+                  onDepartment: (v) => setSheet(() => dept = v),
+                  onSemester: (v) => setSheet(() => sem = v),
+                  onSection: (v) => setSheet(() => section = v),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: (dept == null ||
+                        sem == null ||
+                        section == null ||
+                        saving)
+                        ? null
+                        : () async {
+                      setSheet(() => saving = true);
+                      try {
+                        await FirebaseDatabase.instance
+                            .ref('users/$uid')
+                            .update({
+                          'department': dept,
+                          'semester': sem,
+                          'section': section,
+                        });
+                        if (sheetContext.mounted) {
+                          Navigator.pop(sheetContext);
+                        }
+                      } catch (e) {
+                        setSheet(() => saving = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(content: Text('Could not save: $e')),
+                          );
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: saving
+                        ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.5, color: Colors.white),
+                    )
+                        : const Text('Save',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

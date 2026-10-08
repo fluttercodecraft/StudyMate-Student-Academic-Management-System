@@ -1,8 +1,11 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:study_mate/common/AcadmicOption.dart';
 
 class TimetableScreen extends StatelessWidget {
-  const TimetableScreen({super.key});
+  final Map<String, dynamic> profile;
+
+  const TimetableScreen({super.key, this.profile = const {}});
 
   static const Color primary = Color(0xFF1355D6);
   static const Color primaryDark = Color(0xFF0B3A9E);
@@ -76,7 +79,9 @@ class TimetableScreen extends StatelessWidget {
                     if (value is Map) {
                       final c = Map<String, dynamic>.from(value);
                       final s = _toDate(c['startAt']);
-                      if (s != null && !s.isBefore(startOfToday)) {
+                      if (s != null &&
+                          !s.isBefore(startOfToday) &&
+                          matchesAcademic(c, profile)) {
                         items.add(c);
                       }
                     }
