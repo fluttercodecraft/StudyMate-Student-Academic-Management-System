@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:study_mate/Common/AcademicOptions.dart';
+import 'package:study_mate/common/AcadmicOption.dart';
 
 class AddClassScreen extends StatefulWidget {
   const AddClassScreen({super.key});
