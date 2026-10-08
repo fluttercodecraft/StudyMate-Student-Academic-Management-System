@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:study_mate/Common/AcademicOptions.dart';
 
 class AddClassScreen extends StatefulWidget {
   const AddClassScreen({super.key});
@@ -24,6 +25,9 @@ class _AddClassScreenState extends State<AddClassScreen> {
   TimeOfDay? _start;
   TimeOfDay? _end;
   int _weeks = 1;
+  String? _dept;
+  int? _sem;
+  String? _section;
   bool _loadingCourses = true;
   bool _saving = false;
 
@@ -105,6 +109,9 @@ class _AddClassScreenState extends State<AddClassScreen> {
 
   Future<void> _save() async {
     if (_courseId == null) return _snack('Please select a course.');
+    if (_dept == null || _sem == null || _section == null) {
+      return _snack('Please choose department, semester and section.');
+    }
     if (_date == null) return _snack('Please choose the date.');
     if (_start == null || _end == null) {
       return _snack('Please choose the start and end time.');
@@ -150,6 +157,9 @@ class _AddClassScreenState extends State<AddClassScreen> {
           'subject': course['name'],
           'teacher': teacher,
           'room': _roomCtrl.text.trim(),
+          'department': _dept,
+          'semester': _sem,
+          'section': _section,
           'startAt': start.millisecondsSinceEpoch,
           'endAt': end.millisecondsSinceEpoch,
           'teacherId': user.uid,
@@ -201,6 +211,17 @@ class _AddClassScreenState extends State<AddClassScreen> {
                 children: [
                   _label('Course'),
                   _courseField(),
+                  const SizedBox(height: 18),
+                  _label('Department, semester & section'),
+                  AcademicPicker(
+                    accent: violet,
+                    department: _dept,
+                    semester: _sem,
+                    section: _section,
+                    onDepartment: (v) => setState(() => _dept = v),
+                    onSemester: (v) => setState(() => _sem = v),
+                    onSection: (v) => setState(() => _section = v),
+                  ),
                   const SizedBox(height: 18),
                   _label('Date'),
                   _pickerTile(

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:study_mate/AuthScreens/LoginScreen.dart';
 import 'package:study_mate/StudentScreens/StudentDashboardScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherDashboard.dart';
+import 'package:study_mate/common/AcadmicOption.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
