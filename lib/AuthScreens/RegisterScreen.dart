@@ -1,1125 +1,519 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/material.dart';
+import 'package:study_mate/AuthScreens/LoginScreen.dart';
+import 'package:study_mate/StudentScreens/StudentDashboardScreen.dart';
+import 'package:study_mate/TeacherScreens/TeacherDashboard.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() =>
-      _RegisterScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState
-    extends State<RegisterScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
+  static const Color studentColor = Color(0xFF1355D6);
+  static const Color teacherColor = Color(0xFF6C5CE7);
+  static const Color background = Color(0xFFF4F6FB);
+  static const Color textDark = Color(0xFF1F2937);
+  static const Color textGrey = Color(0xFF6B7280);
 
-  // ============================================================
-  // FORM
-  // ============================================================
+  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+  final _subjectCtrl = TextEditingController();
 
-  final GlobalKey<FormState> _formKey =
-  GlobalKey<FormState>();
-
-  // ============================================================
-  // CONTROLLERS
-  // ============================================================
-
-  final TextEditingController _nameController =
-  TextEditingController();
-
-  final TextEditingController _emailController =
-  TextEditingController();
-
-  final TextEditingController _passwordController =
-  TextEditingController();
-
-  final TextEditingController
-  _confirmPasswordController =
-  TextEditingController();
-
-  // ============================================================
-  // ROLES
-  // ============================================================
-
-  // Admin is intentionally not available for public registration.
-  final List<String> _roles = [
-    'Student',
-    'Teacher',
-  ];
-
-  String _selectedRole = 'Student';
-
-  // ============================================================
-  // SEMESTERS
-  // ============================================================
-
-  final List<String> _semesters =
-  List<String>.generate(
-    8,
-        (index) => '${index + 1}',
-  );
-
-  String _selectedSemester = '1';
-
-  // ============================================================
-  // DEPARTMENTS
-  // ============================================================
-
-  final List<String> _departments = [
-    'Civil Engineering',
-    'Electrical Engineering',
-    'Mechanical Engineering',
-    'Computer Science',
-    'Software Engineering',
-    'Telecommunication Engineering',
-  ];
-
-  String _selectedDepartment =
-      'Civil Engineering';
-
-  // ============================================================
-  // VARIABLES
-  // ============================================================
-
-  bool _passwordVisible = false;
-  bool _confirmPasswordVisible = false;
+  bool _isStudent = true;
+  String? _dept;
+  int? _sem;
+  String? _section;
+  bool _obscure = true;
   bool _loading = false;
 
-  // ============================================================
-  // REGISTER USER
-  // ============================================================
-
-  Future<void> _registerUser() async {
-
-    // ==========================================================
-    // STEP 1: VALIDATE FORM
-    // ==========================================================
-
-    if (!(_formKey.currentState?.validate() ??
-        false)) {
-      return;
-    }
-
-    // Hide keyboard
-    FocusScope.of(context).unfocus();
-
-    setState(() {
-      _loading = true;
-    });
-
-    try {
-
-      // ========================================================
-      // STEP 2: GET USER INPUT
-      // ========================================================
-
-      final String name =
-      _nameController.text.trim();
-
-      final String email =
-      _emailController.text.trim().toLowerCase();
-
-      final String password =
-      _passwordController.text.trim();
-
-      // ========================================================
-      // STEP 3: CREATE FIREBASE AUTH ACCOUNT
-      // ========================================================
-
-      final UserCredential userCredential =
-      await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      final User? user =
-          userCredential.user;
-
-      // ========================================================
-      // STEP 4: CHECK USER
-      // ========================================================
-
-      if (user == null) {
-        if (mounted) {
-          _showMessage(
-            'Unable to create account. Please try again.',
-            isSuccess: false,
-          );
-        }
-        return;
-      }
-
-      debugPrint(
-        'Firebase Auth account created.',
-      );
-
-      debugPrint(
-        'User UID: ${user.uid}',
-      );
-
-      // ========================================================
-      // STEP 5: UPDATE DISPLAY NAME
-      // ========================================================
-
-      await user.updateDisplayName(name);
-
-      // ========================================================
-      // STEP 6: GET REALTIME DATABASE REFERENCE
-      // ========================================================
-
-      final DatabaseReference userReference =
-      FirebaseDatabase.instance
-          .ref('users/${user.uid}');
-
-      // ========================================================
-      // STEP 7: SAVE USER DATA
-      // ========================================================
-
-      await userReference.set({
-        'uid': user.uid,
-        'name': name,
-        'email': email,
-        'role': _selectedRole,
-        'department': _selectedDepartment,
-        'semester': _selectedSemester,
-        'createdAt': ServerValue.timestamp,
-      });
-
-      debugPrint(
-        'User data saved to Realtime Database.',
-      );
-
-      // ========================================================
-      // STEP 8: SUCCESS
-      // ========================================================
-
-      if (!mounted) return;
-
-      _showMessage(
-        'Account created successfully as $_selectedRole.',
-        isSuccess: true,
-      );
-
-      // Go back to Login screen
-      Navigator.pop(context);
-
-    }
-
-    // ==========================================================
-    // FIREBASE AUTHENTICATION ERRORS
-    // ==========================================================
-
-    on FirebaseAuthException catch (e) {
-
-      String message =
-          'Registration failed.';
-
-      switch (e.code) {
-
-        case 'email-already-in-use':
-          message =
-          'This email is already registered.';
-          break;
-
-        case 'invalid-email':
-          message =
-          'Please enter a valid email address.';
-          break;
-
-        case 'weak-password':
-          message =
-          'The password provided is too weak.';
-          break;
-
-        case 'operation-not-allowed':
-          message =
-          'Email/Password sign-in is not enabled in Firebase.';
-          break;
-
-        case 'network-request-failed':
-          message =
-          'Network error. Please check your internet connection.';
-          break;
-
-        default:
-          message =
-              e.message ?? 'Registration failed.';
-      }
-
-      if (mounted) {
-        _showMessage(
-          message,
-          isSuccess: false,
-        );
-      }
-    }
-
-    // ==========================================================
-    // OTHER ERRORS
-    // ==========================================================
-
-    catch (e) {
-
-      debugPrint(
-        'Registration error: $e',
-      );
-
-      if (mounted) {
-        _showMessage(
-          'Unable to save account data. Please try again.',
-          isSuccess: false,
-        );
-      }
-    }
-
-    // ==========================================================
-    // STOP LOADING
-    // ==========================================================
-
-    finally {
-
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-      }
-    }
-  }
-
-  // ============================================================
-  // SHOW MESSAGE
-  // ============================================================
-
-  void _showMessage(
-      String message, {
-        required bool isSuccess,
-      }) {
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-
-          backgroundColor:
-          isSuccess
-              ? Colors.green
-              : Colors.red,
-
-          behavior:
-          SnackBarBehavior.floating,
-
-          shape:
-          RoundedRectangleBorder(
-            borderRadius:
-            BorderRadius.circular(10),
-          ),
-        ),
-      );
-  }
-
-  // ============================================================
-  // DISPOSE
-  // ============================================================
+  Color get _accent => _isStudent ? studentColor : teacherColor;
 
   @override
   void dispose() {
-
-    _nameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    _confirmCtrl.dispose();
+    _subjectCtrl.dispose();
     super.dispose();
   }
 
-  // ============================================================
-  // BUILD UI
-  // ============================================================
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  String _authMessage(String code) {
+    switch (code) {
+      case 'email-already-in-use':
+        return 'This email is already registered. Try logging in.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'weak-password':
+        return 'Password is too weak. Use at least 6 characters.';
+      case 'network-request-failed':
+        return 'No internet connection.';
+      default:
+        return 'Registration failed ($code).';
+    }
+  }
+
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_dept == null) return _snack('Please select your department.');
+    if (_isStudent && (_sem == null || _section == null)) {
+      return _snack('Please select your semester and section.');
+    }
+
+    final isStudent = _isStudent;
+    setState(() => _loading = true);
+
+    UserCredential? cred;
+
+    try {
+      cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailCtrl.text.trim(),
+        password: _passCtrl.text,
+      );
+
+      final user = cred.user!;
+      final name = _nameCtrl.text.trim();
+      await user.updateDisplayName(name);
+
+      await FirebaseDatabase.instance.ref('users/${user.uid}').set({
+        'uid': user.uid,
+        'name': name,
+        'email': _emailCtrl.text.trim(),
+        'role': isStudent ? 'student' : 'teacher',
+        'department': _dept,
+        if (isStudent) 'semester': _sem,
+        if (isStudent) 'section': _section,
+        if (!isStudent && _subjectCtrl.text.trim().isNotEmpty)
+          'subject': _subjectCtrl.text.trim(),
+        'createdAt': ServerValue.timestamp,
+      });
+
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+          isStudent ? const StudentDashboardScreen() : const TeacherDashboard(),
+        ),
+            (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      _snack(_authMessage(e.code));
+    } catch (e) {
+      // Profile could not be saved: remove the half-created account so the
+      // person can simply try again with the same email.
+      try {
+        await cred?.user?.delete();
+      } catch (_) {}
+      _snack('Could not save your profile: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _goToLogin() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => LoginScreen()),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-
-    final OutlineInputBorder borderStyle =
-    OutlineInputBorder(
-      borderRadius:
-      BorderRadius.circular(14),
-      borderSide:
-      BorderSide.none,
-    );
-
-    final OutlineInputBorder
-    errorBorderStyle =
-    OutlineInputBorder(
-      borderRadius:
-      BorderRadius.circular(14),
-      borderSide:
-      const BorderSide(
-        color: Colors.redAccent,
-        width: 1,
-      ),
-    );
-
     return Scaffold(
-      backgroundColor:
-      const Color(0xFFF5F7FB),
-
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding:
-          const EdgeInsets.all(25),
-
-          child: Form(
-            key: _formKey,
-
-            child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
-
-              children: [
-
-                const SizedBox(height: 25),
-
-                // ==================================================
-                // LOGO
-                // ==================================================
-
-                Center(
-                  child: Container(
-                    width: 85,
-                    height: 85,
-
-                    decoration:
-                    BoxDecoration(
-                      color:
-                      const Color(0xFF1355D6),
-
-                      borderRadius:
-                      BorderRadius.circular(22),
-                    ),
-
-                    child: const Icon(
-                      Icons.school_rounded,
-
-                      color: Colors.white,
-
-                      size: 48,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 25),
-
-                // ==================================================
-                // TITLE
-                // ==================================================
-
-                const Center(
-                  child: Text(
-                    'Create Account',
-
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight:
-                      FontWeight.bold,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                const Center(
-                  child: Text(
-                    'Create your StudyMate account',
-
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 15,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 35),
-
-                // ==================================================
-                // FULL NAME
-                // ==================================================
-
-                const Text(
-                  'Full Name',
-
-                  style: TextStyle(
-                    fontWeight:
-                    FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                TextFormField(
-                  controller:
-                  _nameController,
-
-                  keyboardType:
-                  TextInputType.name,
-
-                  textCapitalization:
-                  TextCapitalization.words,
-
-                  validator: (value) {
-
-                    if (value == null ||
-                        value.trim().isEmpty) {
-                      return
-                        'Please enter your full name';
-                    }
-
-                    return null;
-                  },
-
-                  decoration:
-                  InputDecoration(
-                    hintText:
-                    'Enter your full name',
-
-                    prefixIcon:
-                    const Icon(
-                      Icons.person_outline,
-                    ),
-
-                    filled: true,
-
-                    fillColor:
-                    Colors.white,
-
-                    border:
-                    borderStyle,
-
-                    focusedBorder:
-                    borderStyle,
-
-                    errorBorder:
-                    errorBorderStyle,
-
-                    focusedErrorBorder:
-                    errorBorderStyle,
-                  ),
-                ),
-
-                const SizedBox(height: 18),
-
-                // ==================================================
-                // ROLE
-                // ==================================================
-
-                const Text(
-                  'Select Role',
-
-                  style: TextStyle(
-                    fontWeight:
-                    FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                DropdownButtonFormField<String>(
-                  value:
-                  _selectedRole,
-
-                  icon:
-                  const Icon(
-                    Icons.arrow_drop_down,
-                  ),
-
-                  decoration:
-                  InputDecoration(
-                    prefixIcon:
-                    const Icon(
-                      Icons.badge_outlined,
-                    ),
-
-                    filled: true,
-
-                    fillColor:
-                    Colors.white,
-
-                    border:
-                    borderStyle,
-
-                    focusedBorder:
-                    borderStyle,
-
-                    errorBorder:
-                    errorBorderStyle,
-
-                    focusedErrorBorder:
-                    errorBorderStyle,
-                  ),
-
-                  items:
-                  _roles.map(
-                        (String role) {
-
-                      return
-                        DropdownMenuItem<String>(
-                          value: role,
-
-                          child:
-                          Text(role),
-                        );
-                    },
-                  ).toList(),
-
-                  onChanged:
-                      (String? newValue) {
-
-                    if (newValue != null) {
-
-                      setState(() {
-                        _selectedRole =
-                            newValue;
-                      });
-                    }
-                  },
-                ),
-
-                const SizedBox(height: 18),
-
-                // ==================================================
-                // DEPARTMENT
-                // ==================================================
-
-                const Text(
-                  'Department',
-
-                  style: TextStyle(
-                    fontWeight:
-                    FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                DropdownButtonFormField<String>(
-                  value:
-                  _selectedDepartment,
-
-                  icon:
-                  const Icon(
-                    Icons.arrow_drop_down,
-                  ),
-
-                  isExpanded: true,
-
-                  decoration:
-                  InputDecoration(
-                    prefixIcon:
-                    const Icon(
-                      Icons.account_balance_outlined,
-                    ),
-
-                    filled: true,
-
-                    fillColor:
-                    Colors.white,
-
-                    border:
-                    borderStyle,
-
-                    focusedBorder:
-                    borderStyle,
-
-                    errorBorder:
-                    errorBorderStyle,
-
-                    focusedErrorBorder:
-                    errorBorderStyle,
-                  ),
-
-                  items:
-                  _departments.map(
-                        (String department) {
-
-                      return
-                        DropdownMenuItem<String>(
-                          value: department,
-
-                          child: Text(
-                            department,
-
-                            overflow:
-                            TextOverflow.ellipsis,
-                          ),
-                        );
-                    },
-                  ).toList(),
-
-                  onChanged:
-                      (String? newValue) {
-
-                    if (newValue != null) {
-
-                      setState(() {
-                        _selectedDepartment =
-                            newValue;
-                      });
-                    }
-                  },
-                ),
-
-                const SizedBox(height: 18),
-
-                // ==================================================
-                // SEMESTER
-                // ==================================================
-
-                const Text(
-                  'Semester',
-
-                  style: TextStyle(
-                    fontWeight:
-                    FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                DropdownButtonFormField<String>(
-                  value:
-                  _selectedSemester,
-
-                  icon:
-                  const Icon(
-                    Icons.arrow_drop_down,
-                  ),
-
-                  decoration:
-                  InputDecoration(
-                    prefixIcon:
-                    const Icon(
-                      Icons.calendar_today_outlined,
-                    ),
-
-                    filled: true,
-
-                    fillColor:
-                    Colors.white,
-
-                    border:
-                    borderStyle,
-
-                    focusedBorder:
-                    borderStyle,
-
-                    errorBorder:
-                    errorBorderStyle,
-
-                    focusedErrorBorder:
-                    errorBorderStyle,
-                  ),
-
-                  items:
-                  _semesters.map(
-                        (String semester) {
-
-                      return
-                        DropdownMenuItem<String>(
-                          value: semester,
-
-                          child:
-                          Text(
-                            'Semester $semester',
-                          ),
-                        );
-                    },
-                  ).toList(),
-
-                  onChanged:
-                      (String? newValue) {
-
-                    if (newValue != null) {
-
-                      setState(() {
-                        _selectedSemester =
-                            newValue;
-                      });
-                    }
-                  },
-                ),
-
-                const SizedBox(height: 18),
-
-                // ==================================================
-                // EMAIL
-                // ==================================================
-
-                const Text(
-                  'Email',
-
-                  style: TextStyle(
-                    fontWeight:
-                    FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                TextFormField(
-                  controller:
-                  _emailController,
-
-                  keyboardType:
-                  TextInputType.emailAddress,
-
-                  validator: (value) {
-
-                    if (value == null ||
-                        value.trim().isEmpty) {
-                      return
-                        'Please enter your email';
-                    }
-
-                    final RegExp
-                    emailRegExp =
-                    RegExp(
-                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                    );
-
-                    if (!emailRegExp.hasMatch(
-                        value.trim())) {
-                      return
-                        'Please enter a valid email address';
-                    }
-
-                    return null;
-                  },
-
-                  decoration:
-                  InputDecoration(
-                    hintText:
-                    'Enter your email',
-
-                    prefixIcon:
-                    const Icon(
-                      Icons.email_outlined,
-                    ),
-
-                    filled: true,
-
-                    fillColor:
-                    Colors.white,
-
-                    border:
-                    borderStyle,
-
-                    focusedBorder:
-                    borderStyle,
-
-                    errorBorder:
-                    errorBorderStyle,
-
-                    focusedErrorBorder:
-                    errorBorderStyle,
-                  ),
-                ),
-
-                const SizedBox(height: 18),
-
-                // ==================================================
-                // PASSWORD
-                // ==================================================
-
-                const Text(
-                  'Password',
-
-                  style: TextStyle(
-                    fontWeight:
-                    FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                TextFormField(
-                  controller:
-                  _passwordController,
-
-                  obscureText:
-                  !_passwordVisible,
-
-                  validator: (value) {
-
-                    if (value == null ||
-                        value.trim().isEmpty) {
-                      return
-                        'Please enter a password';
-                    }
-
-                    if (value.trim().length <
-                        6) {
-                      return
-                        'Password must be at least 6 characters';
-                    }
-
-                    return null;
-                  },
-
-                  decoration:
-                  InputDecoration(
-                    hintText:
-                    'Create a password',
-
-                    prefixIcon:
-                    const Icon(
-                      Icons.lock_outline,
-                    ),
-
-                    suffixIcon:
-                    IconButton(
-                      icon: Icon(
-                        _passwordVisible
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-
-                      onPressed: () {
-
-                        setState(() {
-                          _passwordVisible =
-                          !_passwordVisible;
-                        });
-                      },
-                    ),
-
-                    filled: true,
-
-                    fillColor:
-                    Colors.white,
-
-                    border:
-                    borderStyle,
-
-                    focusedBorder:
-                    borderStyle,
-
-                    errorBorder:
-                    errorBorderStyle,
-
-                    focusedErrorBorder:
-                    errorBorderStyle,
-                  ),
-                ),
-
-                const SizedBox(height: 18),
-
-                // ==================================================
-                // CONFIRM PASSWORD
-                // ==================================================
-
-                const Text(
-                  'Confirm Password',
-
-                  style: TextStyle(
-                    fontWeight:
-                    FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                TextFormField(
-                  controller:
-                  _confirmPasswordController,
-
-                  obscureText:
-                  !_confirmPasswordVisible,
-
-                  validator: (value) {
-
-                    if (value == null ||
-                        value.trim().isEmpty) {
-                      return
-                        'Please confirm your password';
-                    }
-
-                    if (value.trim() !=
-                        _passwordController
-                            .text
-                            .trim()) {
-                      return
-                        'Passwords do not match';
-                    }
-
-                    return null;
-                  },
-
-                  decoration:
-                  InputDecoration(
-                    hintText:
-                    'Confirm your password',
-
-                    prefixIcon:
-                    const Icon(
-                      Icons.lock_outline,
-                    ),
-
-                    suffixIcon:
-                    IconButton(
-                      icon: Icon(
-                        _confirmPasswordVisible
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-
-                      onPressed: () {
-
-                        setState(() {
-                          _confirmPasswordVisible =
-                          !_confirmPasswordVisible;
-                        });
-                      },
-                    ),
-
-                    filled: true,
-
-                    fillColor:
-                    Colors.white,
-
-                    border:
-                    borderStyle,
-
-                    focusedBorder:
-                    borderStyle,
-
-                    errorBorder:
-                    errorBorderStyle,
-
-                    focusedErrorBorder:
-                    errorBorderStyle,
-                  ),
-                ),
-
-                const SizedBox(height: 25),
-
-                // ==================================================
-                // CREATE ACCOUNT BUTTON
-                // ==================================================
-
-                SizedBox(
-                  width:
-                  double.infinity,
-
-                  height: 55,
-
-                  child:
-                  ElevatedButton(
-                    onPressed:
-                    _loading
-                        ? null
-                        : _registerUser,
-
-                    style:
-                    ElevatedButton.styleFrom(
-                      backgroundColor:
-                      const Color(
-                        0xFF1355D6,
-                      ),
-
-                      foregroundColor:
-                      Colors.white,
-
-                      shape:
-                      RoundedRectangleBorder(
-                        borderRadius:
-                        BorderRadius.circular(
-                          14,
-                        ),
-                      ),
-                    ),
-
-                    child: _loading
-                        ? const SizedBox(
-                      width: 24,
-                      height: 24,
-
-                      child:
-                      CircularProgressIndicator(
-                        color:
-                        Colors.white,
-
-                        strokeWidth:
-                        2.5,
-                      ),
-                    )
-
-                        : const Text(
-                      'Create Account',
-
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight:
-                        FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // ==================================================
-                // LOGIN LINK
-                // ==================================================
-
-                Row(
-                  mainAxisAlignment:
-                  MainAxisAlignment.center,
-
+      backgroundColor: background,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            _header(context),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 30),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
                     const Text(
-                      'Already have an account?',
-
+                      'I am a',
                       style: TextStyle(
-                        color: Colors.grey,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: textDark,
                       ),
                     ),
-
-                    TextButton(
-                      onPressed:
-                      _loading
-                          ? null
-                          : () {
-                        Navigator.pop(
-                          context,
-                        );
-                      },
-
-                      child:
-                      const Text(
-                        'Login',
-
-                        style: TextStyle(
-                          color:
-                          Color(0xFF1355D6),
-
-                          fontWeight:
-                          FontWeight.bold,
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _roleCard(
+                            'Student',
+                            Icons.school_rounded,
+                            true,
+                            studentColor,
+                          ),
                         ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _roleCard(
+                            'Teacher',
+                            Icons.co_present_rounded,
+                            false,
+                            teacherColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    _field(
+                      controller: _nameCtrl,
+                      label: 'Full name',
+                      icon: Icons.person_outline_rounded,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Please enter your name'
+                          : null,
+                    ),
+                    const SizedBox(height: 14),
+                    _field(
+                      controller: _emailCtrl,
+                      label: 'Email',
+                      icon: Icons.mail_outline_rounded,
+                      keyboard: TextInputType.emailAddress,
+                      validator: (v) {
+                        final t = v?.trim() ?? '';
+                        if (t.isEmpty) return 'Please enter your email';
+                        if (!t.contains('@') || !t.contains('.')) {
+                          return 'Enter a valid email';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    _field(
+                      controller: _passCtrl,
+                      label: 'Password',
+                      icon: Icons.lock_outline_rounded,
+                      obscure: _obscure,
+                      suffix: IconButton(
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                        icon: Icon(
+                          _obscure
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: textGrey,
+                        ),
+                      ),
+                      validator: (v) => (v == null || v.length < 6)
+                          ? 'Use at least 6 characters'
+                          : null,
+                    ),
+                    const SizedBox(height: 14),
+                    _field(
+                      controller: _confirmCtrl,
+                      label: 'Confirm password',
+                      icon: Icons.lock_outline_rounded,
+                      obscure: _obscure,
+                      validator: (v) => v != _passCtrl.text
+                          ? 'Passwords do not match'
+                          : null,
+                    ),
+                    const SizedBox(height: 26),
+
+                    // ---------- role specific ----------
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: _isStudent
+                          ? _studentFields()
+                          : _teacherFields(),
+                    ),
+
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: _loading ? null : _register,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _accent,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: _loading
+                            ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                            : Text(
+                          _isStudent
+                              ? 'Create Student Account'
+                              : 'Create Teacher Account',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Already have an account? ',
+                              style: TextStyle(color: textGrey, fontSize: 13)),
+                          GestureDetector(
+                            onTap: _goToLogin,
+                            child: Text(
+                              'Login',
+                              style: TextStyle(
+                                color: _accent,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 15),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
+    );
+  }
+
+  // ---------- role specific sections ----------
+  Widget _studentFields() {
+    return Column(
+      key: const ValueKey('student'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionLabel('Your class', 'Used to show you the right classes and attendance.'),
+        AcademicPicker(
+          accent: _accent,
+          department: _dept,
+          semester: _sem,
+          section: _section,
+          onDepartment: (v) => setState(() => _dept = v),
+          onSemester: (v) => setState(() => _sem = v),
+          onSection: (v) => setState(() => _section = v),
+        ),
+      ],
+    );
+  }
+
+  Widget _teacherFields() {
+    return Column(
+      key: const ValueKey('teacher'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionLabel('Your department', 'Tell us where you teach.'),
+        DropdownButtonFormField<String>(
+          value: _dept,
+          isExpanded: true,
+          decoration: _decoration('Department', Icons.apartment_rounded),
+          items: Academic.departments
+              .map((d) => DropdownMenuItem(
+            value: d,
+            child: Text(d,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 14)),
+          ))
+              .toList(),
+          onChanged: (v) => setState(() => _dept = v),
+        ),
+        const SizedBox(height: 14),
+        _field(
+          controller: _subjectCtrl,
+          label: 'Subject / specialization (optional)',
+          icon: Icons.menu_book_outlined,
+        ),
+      ],
+    );
+  }
+
+  Widget _sectionLabel(String title, String subtitle) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title,
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 14, color: textDark)),
+          const SizedBox(height: 2),
+          Text(subtitle,
+              style: const TextStyle(color: textGrey, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _roleCard(String label, IconData icon, bool student, Color color) {
+    final selected = _isStudent == student;
+
+    return GestureDetector(
+      onTap: () => setState(() {
+        _isStudent = student;
+        _dept = null;
+        _sem = null;
+        _section = null;
+      }),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: .1) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? color : const Color(0xFFE6EAF0),
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: selected ? color : textGrey, size: 30),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: selected ? color : textGrey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _header(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(
+          24, MediaQuery.of(context).padding.top + 28, 24, 32),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            _accent,
+            _isStudent ? const Color(0xFF0B3A9E) : const Color(0xFF1B1F3B),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(34)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.school_rounded,
+                color: Colors.white, size: 30),
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'Create your account',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _isStudent
+                ? 'Join your class on StudyMate.'
+                : 'Set up your teacher profile.',
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _decoration(String label, IconData icon, {Widget? suffix}) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: textGrey, fontSize: 13.5),
+      prefixIcon: Icon(icon, color: textGrey, size: 21),
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFE6EAF0)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFE6EAF0)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: _accent, width: 1.6),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.redAccent),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.redAccent, width: 1.6),
+      ),
+    );
+  }
+
+  Widget _field({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool obscure = false,
+    Widget? suffix,
+    TextInputType keyboard = TextInputType.text,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscure,
+      keyboardType: keyboard,
+      validator: validator,
+      style: const TextStyle(fontSize: 14.5),
+      decoration: _decoration(label, icon, suffix: suffix),
     );
   }
 }
