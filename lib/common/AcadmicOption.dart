@@ -1,3 +1,4 @@
+// ignore_for_file: file_names
 import 'package:flutter/material.dart';
 
 /// Edit these lists to match your university.
@@ -29,6 +30,13 @@ class Academic {
       if (c.isNotEmpty) 'Sec $c',
     ].join(' • ');
   }
+}
+
+/// "850 B", "12.4 KB", "2.1 MB". Used by the Notes screens.
+String formatFileSize(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 }
 
 /// True when the profile (student) belongs to the class's section.
