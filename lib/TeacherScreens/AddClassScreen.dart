@@ -486,7 +486,7 @@ class _AddClassScreenState extends State<AddClassScreen> {
     }
 
     return DropdownButtonFormField<String>(
-      value: _courseId,
+      initialValue: _courseId,
       isExpanded: true,
       decoration: _decoration('Select a course'),
       items: _courses

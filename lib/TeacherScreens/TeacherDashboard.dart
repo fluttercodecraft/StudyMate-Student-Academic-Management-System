@@ -9,6 +9,7 @@ import 'package:study_mate/TeacherScreens/TeacherAssignementScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherClassScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherMarksScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherClassesScreen.dart';
+import 'package:study_mate/TeacherScreens/TeacherNotesScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherQuizesScreen.dart';
 
 class TeacherDashboard extends StatelessWidget {
@@ -449,7 +450,7 @@ class TeacherDashboard extends StatelessWidget {
           title: 'Notes',
           subtitle: 'Upload learning material',
           color: teal,
-          onTap: () => _comingSoon(context, 'Notes'),
+          onTap: () => _open(context, const TeacherNotesScreen()),
         ),
       ],
     );

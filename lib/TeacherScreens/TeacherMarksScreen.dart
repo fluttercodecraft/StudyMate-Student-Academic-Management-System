@@ -370,7 +370,7 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen> {
           Expanded(
             flex: 5,
             child: DropdownButtonFormField<String>(
-              value: _type,
+              initialValue: _type,
               isExpanded: true,
               decoration: _decoration('Assessment'),
               items: types
@@ -555,7 +555,7 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen> {
     }
 
     return DropdownButtonFormField<String>(
-      value: _courseId,
+      initialValue: _courseId,
       isExpanded: true,
       decoration: _decoration('Course'),
       items: _courses

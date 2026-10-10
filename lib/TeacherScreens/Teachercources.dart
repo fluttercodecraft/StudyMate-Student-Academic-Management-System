@@ -280,7 +280,7 @@ class _CreateCourseState extends State<CreateCourse> {
 
                 // Department
                 DropdownButtonFormField<String>(
-                  value: _selectedDepartment,
+                  initialValue: _selectedDepartment,
                   decoration: _inputDecoration(
                     label: 'Department',
                     icon: Icons.school_rounded,
@@ -309,7 +309,7 @@ class _CreateCourseState extends State<CreateCourse> {
 
                 // Semester
                 DropdownButtonFormField<String>(
-                  value: _selectedSemester,
+                  initialValue: _selectedSemester,
                   decoration: _inputDecoration(
                     label: 'Semester',
                     icon: Icons.calendar_month_rounded,

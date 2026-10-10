@@ -338,7 +338,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       children: [
         _sectionLabel('Your department', 'Tell us where you teach.'),
         DropdownButtonFormField<String>(
-          value: _dept,
+          initialValue: _dept,
           isExpanded: true,
           decoration: _decoration('Department', Icons.apartment_rounded),
           items: Academic.departments

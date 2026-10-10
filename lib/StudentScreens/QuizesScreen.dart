@@ -55,7 +55,7 @@ Widget _gradientHeader(BuildContext context, String title, {Widget? trailing}) {
             ),
           ),
         ),
-        if (trailing != null) trailing,
+        ?trailing,
       ],
     ),
   );
@@ -498,7 +498,10 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
       canPop: _finished,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        if (await _confirmLeave() && mounted) Navigator.pop(context);
+        final shouldLeave = await _confirmLeave();
+        if (shouldLeave && mounted) {
+          Navigator.of(context).pop();
+        }
       },
       child: Scaffold(
         backgroundColor: _background,

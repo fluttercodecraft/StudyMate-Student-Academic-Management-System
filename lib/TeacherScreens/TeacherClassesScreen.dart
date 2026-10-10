@@ -438,7 +438,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     }
 
     return DropdownButtonFormField<String>(
-      value: _courseId,
+      initialValue: _courseId,
       isExpanded: true,
       decoration: InputDecoration(
         labelText: 'Course',

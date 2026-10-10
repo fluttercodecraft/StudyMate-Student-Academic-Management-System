@@ -1,7 +1,7 @@
 // ignore_for_file: file_names
 import 'package:flutter/material.dart';
 
-/// Edit these lists to match your university.
+/// Academic data helpers for departments, semesters, and sections.
 class Academic {
   static const List<String> departments = [
     'Computer Science',
@@ -32,7 +32,7 @@ class Academic {
   }
 }
 
-/// "850 B", "12.4 KB", "2.1 MB". Used by the Notes screens.
+/// "850 B", "12.4 KB", "2.1 MB". Used by the Notes and Assignments screens.
 String formatFileSize(int bytes) {
   if (bytes < 1024) return '$bytes B';
   if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
@@ -78,8 +78,9 @@ class AcademicPicker extends StatelessWidget {
     this.accent = const Color(0xFF1355D6),
   });
 
-  InputDecoration _decoration(String label) => InputDecoration(
+  InputDecoration _decoration(String label, IconData icon) => InputDecoration(
     labelText: label,
+    prefixIcon: Icon(icon, size: 20, color: const Color(0xFF6B7280)),
     labelStyle: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
     filled: true,
     fillColor: Colors.white,
@@ -87,15 +88,15 @@ class AcademicPicker extends StatelessWidget {
     contentPadding:
     const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13),
-      borderSide: const BorderSide(color: Color(0xFFE6EAF0)),
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13),
-      borderSide: const BorderSide(color: Color(0xFFE6EAF0)),
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13),
+      borderRadius: BorderRadius.circular(14),
       borderSide: BorderSide(color: accent, width: 1.5),
     ),
   );
@@ -105,9 +106,9 @@ class AcademicPicker extends StatelessWidget {
     return Column(
       children: [
         DropdownButtonFormField<String>(
-          value: department,
+          initialValue: department,
           isExpanded: true,
-          decoration: _decoration('Department'),
+          decoration: _decoration('Department', Icons.account_balance_rounded),
           items: Academic.departments
               .map((d) => DropdownMenuItem(
             value: d,
@@ -123,9 +124,9 @@ class AcademicPicker extends StatelessWidget {
           children: [
             Expanded(
               child: DropdownButtonFormField<int>(
-                value: semester,
+                initialValue: semester,
                 isExpanded: true,
-                decoration: _decoration('Semester'),
+                decoration: _decoration('Semester', Icons.timeline_rounded),
                 items: Academic.semesters
                     .map((s) => DropdownMenuItem(
                   value: s,
@@ -139,9 +140,9 @@ class AcademicPicker extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: section,
+                initialValue: section,
                 isExpanded: true,
-                decoration: _decoration('Section'),
+                decoration: _decoration('Section', Icons.group_work_rounded),
                 items: Academic.sections
                     .map((s) => DropdownMenuItem(
                   value: s,
