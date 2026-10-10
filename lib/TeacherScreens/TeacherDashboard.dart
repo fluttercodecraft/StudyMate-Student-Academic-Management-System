@@ -1,14 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:study_mate/AuthScreens/LoginScreen.dart';
 import 'package:study_mate/TeacherScreens/AddQuizesScreen.dart';
 import 'package:study_mate/TeacherScreens/Addcourcesscreen.dart';
 import 'package:study_mate/TeacherScreens/AddAssignmentScreen.dart';
 import 'package:study_mate/TeacherScreens/AddClassScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherAssignementScreen.dart';
-import 'package:study_mate/TeacherScreens/TeacherAtendanceScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherClassScreen.dart';
+import 'package:study_mate/TeacherScreens/TeacherMarksScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherClassesScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherQuizesScreen.dart';
 
@@ -37,13 +36,6 @@ class TeacherDashboard extends StatelessWidget {
 
   void _open(BuildContext context, Widget screen) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
-  }
-
-  Future<void> _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    if (context.mounted) {
-      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-    }
   }
 
   @override
@@ -147,23 +139,6 @@ class TeacherDashboard extends StatelessWidget {
                       onPressed: () => _comingSoon(context, 'Notifications'),
                       icon: const Icon(
                         Icons.notifications_none_rounded,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white12,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: IconButton(
-                      onPressed:(){
-                        Navigator.push(context,MaterialPageRoute(builder: (context)=>LoginScreen()));
-                      } ,
-
-                      icon: const Icon(
-                        Icons.logout_rounded,
                         color: Colors.white,
                       ),
                     ),
@@ -372,6 +347,7 @@ class TeacherDashboard extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
                   'Create',
@@ -457,7 +433,7 @@ class TeacherDashboard extends StatelessWidget {
           title: 'Marks',
           subtitle: 'Enter and manage student marks',
           color: ink,
-          onTap: () => _comingSoon(context, 'Marks'),
+          onTap: () => _open(context, const TeacherMarksScreen()),
         ),
         const SizedBox(height: 12),
         _tile(

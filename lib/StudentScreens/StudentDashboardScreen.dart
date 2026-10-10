@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:study_mate/AuthScreens/LoginScreen.dart';
 import 'package:study_mate/StudentScreens/AssignmentScrren.dart';
 import 'package:study_mate/StudentScreens/AttandanceScreen.dart';
+import 'package:study_mate/StudentScreens/MarksScreen.dart';
 import 'package:study_mate/StudentScreens/QuizesScreen.dart';
-
 import 'package:study_mate/StudentScreens/TimetableScreen.dart';
 import 'package:study_mate/StudentScreens/courcesScreen.dart';
 import 'package:study_mate/common/AcadmicOption.dart';
+
 
 class StudentDashboardScreen extends StatelessWidget {
   const StudentDashboardScreen({super.key});
@@ -372,12 +373,13 @@ class StudentDashboardScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const AttendanceScreen()))),
       _Tool(Icons.bar_chart_rounded, 'Marks', const Color(0xFFEF4444),
           const Color(0xFFFEE2E2),
-              () => Navigator.pushNamed(context, '/studentMarks')),
+              () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const MarksScreen()))),
       _Tool(Icons.calendar_month_rounded, 'Timetable', const Color(0xFF0EA5E9),
           const Color(0xFFE0F2FE),
               () => Navigator.push(context,
               MaterialPageRoute(
-                  builder: (_) => TimetableScreen()))),
+                  builder: (_) => TimetableScreen(profile: profile)))),
       _Tool(Icons.sticky_note_2_rounded, 'Notes', const Color(0xFFEC4899),
           const Color(0xFFFCE7F3),
               () => Navigator.pushNamed(context, '/studentNotes')),
