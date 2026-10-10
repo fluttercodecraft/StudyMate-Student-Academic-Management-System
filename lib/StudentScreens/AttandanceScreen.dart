@@ -78,71 +78,54 @@ class AttendanceScreen extends StatelessWidget {
                 : StreamBuilder<DatabaseEvent>(
               stream:
               FirebaseDatabase.instance.ref('attendance').onValue,
-              builder: (context, attSnap) {
-                if (attSnap.hasError) {
+              builder: (context, snap) {
+                if (snap.hasError) {
                   return _state(Icons.error_outline_rounded,
-                      'Unable to load attendance', '${attSnap.error}');
+                      'Unable to load attendance', '${snap.error}');
                 }
-                if (!attSnap.hasData) {
+                if (!snap.hasData) {
                   return const Center(
                     child: CircularProgressIndicator(color: primary),
                   );
                 }
 
-                return StreamBuilder<DatabaseEvent>(
-                  stream:
-                  FirebaseDatabase.instance.ref('classes').onValue,
-                  builder: (context, classSnap) {
-                    if (!classSnap.hasData) {
-                      return const Center(
-                        child:
-                        CircularProgressIndicator(color: primary),
-                      );
-                    }
+                final att = snap.data!.snapshot.value;
+                final records = <Map<String, dynamic>>[];
 
-                    final att = attSnap.data!.snapshot.value;
-                    final classes = classSnap.data!.snapshot.value;
-                    final records = <Map<String, dynamic>>[];
-
-                    if (att is Map && classes is Map) {
-                      att.forEach((classId, students) {
-                        if (students is Map &&
-                            students[user.uid] is Map &&
-                            classes[classId] is Map) {
-                          final cls = Map<String, dynamic>.from(
-                              classes[classId] as Map);
-                          final status = (students[user.uid]
-                          as Map)['status']
-                              ?.toString() ??
-                              'absent';
-                          records.add({
-                            'subject':
-                            (cls['subject'] ?? 'Class').toString(),
-                            'startAt': cls['startAt'],
-                            'status': status,
-                          });
-                        }
+                // attendance/{sheetId}/records/{studentId}/status
+                if (att is Map) {
+                  att.forEach((id, sheet) {
+                    if (sheet is Map &&
+                        sheet['records'] is Map &&
+                        (sheet['records'] as Map)[user.uid] is Map) {
+                      final mine =
+                      (sheet['records'] as Map)[user.uid] as Map;
+                      records.add({
+                        'subject':
+                        (sheet['courseName'] ?? 'Class').toString(),
+                        'startAt': sheet['date'],
+                        'status': mine['status']?.toString() ?? 'absent',
                       });
                     }
+                  });
+                }
 
-                    if (records.isEmpty) {
-                      return _state(
-                        Icons.fact_check_rounded,
-                        'No attendance yet',
-                        'Your attendance will appear here once your teachers mark it.',
-                      );
-                    }
+                if (records.isEmpty) {
+                  return _state(
+                    Icons.fact_check_rounded,
+                    'No attendance yet',
+                    'Your attendance will appear here once your teachers mark it.',
+                  );
+                }
 
-                    records.sort((a, b) {
-                      final x = _toDate(a['startAt']);
-                      final y = _toDate(b['startAt']);
-                      if (x == null || y == null) return 0;
-                      return y.compareTo(x);
-                    });
+                records.sort((a, b) {
+                  final x = _toDate(a['startAt']);
+                  final y = _toDate(b['startAt']);
+                  if (x == null || y == null) return 0;
+                  return y.compareTo(x);
+                });
 
-                    return _content(context, records);
-                  },
-                );
+                return _content(context, records);
               },
             ),
           ),
@@ -338,7 +321,7 @@ class AttendanceScreen extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(top: 3),
                           child: Text(
-                            '${_day(s)}  •  ${TimeOfDay.fromDateTime(s).format(context)}',
+                            _day(s),
                             style: const TextStyle(
                                 color: textGrey, fontSize: 11.5),
                           ),

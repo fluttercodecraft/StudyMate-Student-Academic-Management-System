@@ -9,6 +9,7 @@ import 'package:study_mate/TeacherScreens/AddClassScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherAssignementScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherAtendanceScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherClassScreen.dart';
+import 'package:study_mate/TeacherScreens/TeacherClassesScreen.dart';
 import 'package:study_mate/TeacherScreens/TeacherQuizesScreen.dart';
 
 class TeacherDashboard extends StatelessWidget {
