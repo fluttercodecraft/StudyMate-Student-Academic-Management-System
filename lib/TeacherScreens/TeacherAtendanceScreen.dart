@@ -13,7 +13,6 @@ class TeacherAttendanceScreen extends StatefulWidget {
 
 class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   static const Color ink = Color(0xFF1B1F3B);
-  static const Color teal = Color(0xFF14B8A6);
   static const Color emerald = Color(0xFF10B981);
   static const Color coral = Color(0xFFEF4444);
   static const Color amber = Color(0xFFF59E0B);

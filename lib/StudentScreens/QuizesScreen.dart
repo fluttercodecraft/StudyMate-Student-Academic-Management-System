@@ -499,7 +499,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         final shouldLeave = await _confirmLeave();
-        if (shouldLeave && mounted) {
+        if (shouldLeave && context.mounted) {
           Navigator.of(context).pop();
         }
       },
