@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -37,13 +37,14 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
       );
 
       if (image == null) return;
-      await _uploadProfilePicture(File(image.path));
+      final Uint8List bytes = await image.readAsBytes();
+      await _uploadProfilePicture(bytes);
     } catch (e) {
       _showMessage('Failed to select image: $e', isError: true);
     }
   }
 
-  Future<void> _uploadProfilePicture(File imageFile) async {
+  Future<void> _uploadProfilePicture(Uint8List imageBytes) async {
     final User? user = currentUser;
     if (user == null) return;
 
@@ -57,7 +58,10 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
           .child('profile')
           .child('profile.jpg');
 
-      await storageReference.putFile(imageFile);
+      await storageReference.putData(
+        imageBytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
       final String downloadUrl = await storageReference.getDownloadURL();
 
       // Update in Realtime Database

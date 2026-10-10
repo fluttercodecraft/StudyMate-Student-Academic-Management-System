@@ -1,10 +1,12 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' show File;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart' show OpenFilex, ResultType;
 import 'package:path_provider/path_provider.dart';
+import 'package:pdfx/pdfx.dart';
 import 'package:study_mate/common/AcadmicOption.dart';
 
 /// Student side of Notes.
@@ -61,6 +63,67 @@ class _NotesScreenState extends State<NotesScreen> {
       final b64 = snap.value?.toString();
       if (b64 == null || b64.isEmpty) {
         _snack('This file is no longer available.');
+        return;
+      }
+
+      if (kIsWeb) {
+        final bytes = base64Decode(b64);
+        final pdfDoc = await PdfDocument.openData(bytes);
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (ctx) {
+            final pdfPinchController = PdfControllerPinch(
+              document: Future.value(pdfDoc),
+            );
+            return Dialog(
+              backgroundColor: Colors.white,
+              insetPadding: const EdgeInsets.all(16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: SizedBox(
+                width: 700,
+                height: 800,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              note['title']?.toString() ?? 'Note PDF',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: PdfViewPinch(
+                        controller: pdfPinchController,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
         return;
       }
 
