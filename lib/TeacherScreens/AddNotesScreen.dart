@@ -1,5 +1,7 @@
+
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -19,12 +21,14 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
   static const Color violet = Color(0xFF6C5CE7);
   static const Color textGrey = Color(0xFF6B7280);
   static const Color line = Color(0xFFE6EAF0);
-  static const int _maxPdfBytes = 3 * 1024 * 1024; // 3 MB
 
-  final _titleCtrl = TextEditingController();
-  final _contentCtrl = TextEditingController();
+  static const int _maxPdfBytes = 3 * 1024 * 1024;
+
+  final TextEditingController _titleCtrl = TextEditingController();
+  final TextEditingController _contentCtrl = TextEditingController();
 
   List<Map<String, String>> _courses = [];
+
   String? _courseId;
   String? _dept;
   int? _sem;
@@ -49,40 +53,77 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
     super.dispose();
   }
 
-  Future<void> _loadCourses() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    try {
-      final snap = await FirebaseDatabase.instance.ref('courses').get();
-      final v = snap.value;
-      final list = <Map<String, String>>[];
+  // Convert bytes into a readable file size.
+  String formatFileSize(int bytes) {
+    if (bytes < 1024) {
+      return '$bytes B';
+    }
 
-      if (v is Map) {
-        v.forEach((key, value) {
-          if (value is Map) {
-            final c = Map<String, dynamic>.from(value);
-            final owner = c['teacherId']?.toString();
-            if (owner != null && owner.isNotEmpty && owner != uid) return;
-            list.add({
-              'id': (c['courseId'] ?? key).toString(),
-              'name': (c['courseName'] ?? 'Unnamed Course').toString(),
-              'code': (c['courseCode'] ?? '').toString(),
-            });
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    }
+
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+  }
+
+  Future<void> _loadCourses() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) {
+        if (!mounted) return;
+
+        setState(() => _loadingCourses = false);
+        _snack('Please log in again.');
+        return;
+      }
+
+      final snapshot =
+      await FirebaseDatabase.instance.ref('courses').get();
+
+      final value = snapshot.value;
+      final List<Map<String, String>> list = [];
+
+      if (value is Map) {
+        value.forEach((key, value) {
+          if (value is! Map) return;
+
+          final course = Map<String, dynamic>.from(value);
+
+          final owner = course['teacherId']?.toString();
+
+          // Show courses belonging to this teacher.
+          // Courses without an owner are also included.
+          if (owner != null &&
+              owner.isNotEmpty &&
+              owner != user.uid) {
+            return;
           }
+
+          list.add({
+            'id': (course['courseId'] ?? key).toString(),
+            'name':
+            (course['courseName'] ?? 'Unnamed Course').toString(),
+            'code': (course['courseCode'] ?? '').toString(),
+          });
         });
       }
 
       if (!mounted) return;
+
       setState(() {
         _courses = list;
         _loadingCourses = false;
       });
     } catch (e) {
       if (!mounted) return;
+
       setState(() => _loadingCourses = false);
       _snack('Could not load courses: $e');
     }
   }
 
+  // Select and validate a PDF.
   Future<void> _pickPdf() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -90,17 +131,26 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
         allowedExtensions: ['pdf'],
         withData: true,
       );
+
       if (result == null) return;
 
       final file = result.files.single;
       final bytes = file.bytes;
-      if (bytes == null) return _snack('Could not read that file.');
+
+      if (bytes == null) {
+        _snack('Could not read that file.');
+        return;
+      }
 
       if (bytes.length > _maxPdfBytes) {
-        return _snack(
-          'PDF is ${formatFileSize(bytes.length)}. The limit is 3 MB.',
+        _snack(
+          'PDF is ${formatFileSize(bytes.length)}. '
+              'The limit is 3 MB.',
         );
+        return;
       }
+
+      if (!mounted) return;
 
       setState(() {
         _fileBytes = bytes;
@@ -111,37 +161,67 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
     }
   }
 
+  // Save the note and optional PDF to Firebase Realtime Database.
   Future<void> _save() async {
+    if (_saving) return;
+
     final title = _titleCtrl.text.trim();
     final content = _contentCtrl.text.trim();
 
-    if (_courseId == null) return _snack('Please select a course.');
-    if (_dept == null || _sem == null || _section == null) {
-      return _snack('Please choose department, semester and section.');
+    if (_courseId == null) {
+      _snack('Please select a course.');
+      return;
     }
-    if (title.isEmpty) return _snack('Please enter a title.');
+
+    if (_dept == null || _sem == null || _section == null) {
+      _snack('Please choose department, semester and section.');
+      return;
+    }
+
+    if (title.isEmpty) {
+      _snack('Please enter a title.');
+      return;
+    }
+
     if (content.isEmpty && _fileBytes == null) {
-      return _snack('Write some notes or attach a PDF.');
+      _snack('Write some notes or attach a PDF.');
+      return;
     }
 
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return _snack('Please log in again.');
+
+    if (user == null) {
+      _snack('Please log in again.');
+      return;
+    }
 
     setState(() => _saving = true);
 
     try {
-      final course = _courses.firstWhere((c) => c['id'] == _courseId);
+      final course = _courses.firstWhere(
+            (c) => c['id'] == _courseId,
+      );
 
-      final nameSnap = await FirebaseDatabase.instance
+      final nameSnapshot = await FirebaseDatabase.instance
           .ref('users/${user.uid}/name')
           .get();
-      final teacher =
-          nameSnap.value?.toString() ?? user.displayName ?? 'Teacher';
 
-      final id = FirebaseDatabase.instance.ref('notes').push().key!;
+      final teacherName =
+      nameSnapshot.value?.toString().trim().isNotEmpty == true
+          ? nameSnapshot.value.toString()
+          : (user.displayName ?? 'Teacher');
+
+      final notesRef = FirebaseDatabase.instance.ref('notes');
+      final id = notesRef.push().key;
+
+      if (id == null) {
+        throw Exception('Could not generate a note ID.');
+      }
+
       final hasFile = _fileBytes != null;
 
-      await FirebaseDatabase.instance.ref().update({
+      // Save the note and optional PDF in one atomic update.
+      final Map<String, Object?> updates = {
         'notes/$id': {
           'noteId': id,
           'title': title,
@@ -152,7 +232,7 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
           'semester': _sem,
           'section': _section,
           'teacherId': user.uid,
-          'teacherName': teacher,
+          'teacherName': teacherName,
           'createdAt': ServerValue.timestamp,
           'hasFile': hasFile,
           if (hasFile) 'fileName': _fileName,
@@ -164,22 +244,33 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
             'size': _fileBytes!.length,
             'data': base64Encode(_fileBytes!),
           },
-      });
+      };
+
+      await FirebaseDatabase.instance.ref().update(updates);
 
       if (!mounted) return;
-      _snack('Notes posted.');
+
+      _snack('Notes posted successfully.');
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _saving = false);
-      _snack('Could not save: $e');
+
+      _snack('Could not save notes: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
   }
 
-  void _snack(String msg) {
+  void _snack(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg)));
+      ..showSnackBar(
+        SnackBar(content: Text(message)),
+      );
   }
 
   @override
@@ -204,33 +295,49 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
                         department: _dept,
                         semester: _sem,
                         section: _section,
-                        onDepartment: (v) => setState(() => _dept = v),
-                        onSemester: (v) => setState(() => _sem = v),
-                        onSection: (v) => setState(() => _section = v),
+                        onDepartment: (v) {
+                          setState(() => _dept = v);
+                        },
+                        onSemester: (v) {
+                          setState(() => _sem = v);
+                        },
+                        onSection: (v) {
+                          setState(() => _section = v);
+                        },
                       ),
                       const SizedBox(height: 18),
+
                       _label('Course'),
                       _courseField(),
                       const SizedBox(height: 18),
+
                       _label('Title'),
                       TextField(
                         controller: _titleCtrl,
-                        decoration: _decoration('e.g. Chapter 3: Linked Lists'),
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: _decoration(
+                          'e.g. Chapter 3: Linked Lists',
+                        ),
                       ),
                       const SizedBox(height: 18),
+
                       _label('Notes'),
                       TextField(
                         controller: _contentCtrl,
                         maxLines: 8,
                         minLines: 5,
+                        textCapitalization: TextCapitalization.sentences,
                         decoration: _decoration(
-                          'Write the lesson notes here (optional if you attach a PDF)',
+                          'Write the lesson notes here '
+                              '(optional if you attach a PDF)',
                         ),
                       ),
                       const SizedBox(height: 18),
+
                       _label('Attachment (PDF, optional)'),
                       _attachField(),
                       const SizedBox(height: 28),
+
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -246,20 +353,20 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
                           ),
                           child: _saving
                               ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: Colors.white,
-                                  ),
-                                )
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
                               : const Text(
-                                  'Post Notes',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                ),
+                            'Post Notes',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -279,20 +386,32 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
         onTap: _pickPdf,
         borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 15,
+          ),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: violet.withValues(alpha: .35)),
+            border: Border.all(
+              color: violet.withValues(alpha: 0.35),
+            ),
           ),
           child: const Row(
             children: [
-              Icon(Icons.attach_file_rounded, color: violet, size: 21),
+              Icon(
+                Icons.attach_file_rounded,
+                color: violet,
+                size: 21,
+              ),
               SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Attach a PDF (max 3 MB)',
-                  style: TextStyle(fontSize: 14, color: violet),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: violet,
+                  ),
                 ),
               ),
             ],
@@ -339,17 +458,28 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
                 const SizedBox(height: 2),
                 Text(
                   formatFileSize(_fileBytes!.length),
-                  style: const TextStyle(color: textGrey, fontSize: 11.5),
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 11.5,
+                  ),
                 ),
               ],
             ),
           ),
           IconButton(
-            onPressed: () => setState(() {
-              _fileBytes = null;
-              _fileName = null;
-            }),
-            icon: const Icon(Icons.close_rounded, color: textGrey),
+            tooltip: 'Remove PDF',
+            onPressed: _saving
+                ? null
+                : () {
+              setState(() {
+                _fileBytes = null;
+                _fileName = null;
+              });
+            },
+            icon: const Icon(
+              Icons.close_rounded,
+              color: textGrey,
+            ),
           ),
         ],
       ),
@@ -364,7 +494,10 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
           child: SizedBox(
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2.5, color: violet),
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: violet,
+            ),
           ),
         ),
       );
@@ -380,7 +513,10 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
         ),
         child: const Text(
           'You have no courses yet. Create a course first.',
-          style: TextStyle(color: Color(0xFF92400E), fontSize: 13),
+          style: TextStyle(
+            color: Color(0xFF92400E),
+            fontSize: 13,
+          ),
         ),
       );
     }
@@ -389,53 +525,71 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
       value: _courseId,
       isExpanded: true,
       decoration: _decoration('Select a course'),
-      items: _courses
-          .map(
-            (c) => DropdownMenuItem<String>(
-              value: c['id'],
-              child: Text(
-                c['code']!.isEmpty ? c['name']! : '${c['name']} (${c['code']})',
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14),
-              ),
-            ),
-          )
-          .toList(),
-      onChanged: (v) => setState(() => _courseId = v),
+      items: _courses.map((course) {
+        final code = course['code'] ?? '';
+        final name = course['name'] ?? 'Unnamed Course';
+
+        return DropdownMenuItem<String>(
+          value: course['id'],
+          child: Text(
+            code.isEmpty ? name : '$name ($code)',
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 14),
+          ),
+        );
+      }).toList(),
+      onChanged: _saving
+          ? null
+          : (value) {
+        setState(() => _courseId = value);
+      },
     );
   }
 
-  Widget _label(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Text(
-      text,
-      style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 13.5,
-        color: ink,
+  Widget _label(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 13.5,
+          color: ink,
+        ),
       ),
-    ),
-  );
+    );
+  }
 
-  InputDecoration _decoration(String hint) => InputDecoration(
-    hintText: hint,
-    hintStyle: const TextStyle(color: textGrey, fontSize: 13),
-    filled: true,
-    fillColor: Colors.white,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13),
-      borderSide: const BorderSide(color: line),
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13),
-      borderSide: const BorderSide(color: line),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13),
-      borderSide: const BorderSide(color: violet, width: 1.5),
-    ),
-  );
+  InputDecoration _decoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(
+        color: textGrey,
+        fontSize: 13,
+      ),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 14,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(13),
+        borderSide: const BorderSide(color: line),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(13),
+        borderSide: const BorderSide(color: line),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(13),
+        borderSide: const BorderSide(
+          color: violet,
+          width: 1.5,
+        ),
+      ),
+    );
+  }
 
   Widget _header(BuildContext context) {
     return Container(
@@ -450,9 +604,14 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [ink, Color(0xFF3B3F8F)],
+          colors: [
+            ink,
+            Color(0xFF3B3F8F),
+          ],
         ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(34)),
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(34),
+        ),
       ),
       child: Row(
         children: [
