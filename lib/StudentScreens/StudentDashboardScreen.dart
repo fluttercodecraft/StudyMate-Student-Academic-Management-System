@@ -5,11 +5,12 @@ import 'package:study_mate/AuthScreens/LoginScreen.dart';
 import 'package:study_mate/StudentScreens/AssignmentScrren.dart';
 import 'package:study_mate/StudentScreens/AttandanceScreen.dart';
 import 'package:study_mate/StudentScreens/MarksScreen.dart';
+import 'package:study_mate/StudentScreens/NotificationScreen.dart';
+
 import 'package:study_mate/StudentScreens/QuizesScreen.dart';
 import 'package:study_mate/StudentScreens/TimetableScreen.dart';
 import 'package:study_mate/StudentScreens/courcesScreen.dart';
 import 'package:study_mate/common/AcadmicOption.dart';
-
 
 class StudentDashboardScreen extends StatelessWidget {
   const StudentDashboardScreen({super.key});
@@ -131,7 +132,7 @@ class StudentDashboardScreen extends StatelessWidget {
               physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
                 children: [
-                  _header(context, user.uid, name, photoUrl),
+                  _header(context, user.uid, name, photoUrl, data),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(18, 22, 18, 30),
                     child: Column(
@@ -171,7 +172,7 @@ class StudentDashboardScreen extends StatelessWidget {
 
   // ---------- header ----------
   Widget _header(
-      BuildContext context, String uid, String name, String photoUrl) {
+      BuildContext context, String uid, String name, String photoUrl, Map<String, dynamic> profileData) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
@@ -243,7 +244,7 @@ class StudentDashboardScreen extends StatelessWidget {
                 color: Colors.white24,
                 shape: const CircleBorder(),
                 child: IconButton(
-                  onPressed: () => _showNotifications(context),
+                  onPressed: () => _showNotifications(context, profileData),
                   icon: const Icon(Icons.notifications_none_rounded,
                       color: Colors.white),
                 ),
@@ -271,7 +272,6 @@ class StudentDashboardScreen extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          // Courses live in Realtime Database
           child: StreamBuilder<DatabaseEvent>(
             stream: FirebaseDatabase.instance.ref('courses').onValue,
             builder: (context, snap) {
@@ -913,31 +913,11 @@ class StudentDashboardScreen extends StatelessWidget {
   }
 
   // ---------- misc ----------
-  void _showNotifications(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => const SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(26),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.notifications_none_rounded,
-                  size: 42, color: primary),
-              SizedBox(height: 12),
-              Text('Notifications',
-                  style:
-                  TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
-              SizedBox(height: 8),
-              Text('Your teacher updates will appear here.',
-                  style: TextStyle(color: Colors.grey)),
-              SizedBox(height: 16),
-            ],
-          ),
-        ),
+  void _showNotifications(BuildContext context, Map<String, dynamic> profile) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NotificationScreen(profile: profile),
       ),
     );
   }
