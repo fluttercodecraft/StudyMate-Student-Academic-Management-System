@@ -1,9 +1,7 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:study_mate/StudentScreens/AssignmentScrren.dart';
 import 'package:study_mate/StudentScreens/AttandanceScreen.dart';
-import 'package:study_mate/StudentScreens/MarksScreen.dart';
 import 'package:study_mate/StudentScreens/NotesScreen.dart';
 import 'package:study_mate/StudentScreens/QuizesScreen.dart';
 import 'package:study_mate/StudentScreens/TimetableScreen.dart';
@@ -23,12 +21,12 @@ class NotificationsScreen extends StatelessWidget {
   DateTime? _toDate(dynamic v) =>
       v is int ? DateTime.fromMillisecondsSinceEpoch(v) : null;
 
-  String _formatTime(DateTime d) {
+  String _formatTime(BuildContext context, DateTime d) {
     const m = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
-    return '${d.day} ${m[d.month - 1]}, ${TimeOfDay.fromDateTime(d).format(null)}';
+    return '${d.day} ${m[d.month - 1]}, ${TimeOfDay.fromDateTime(d).format(context)}';
   }
 
   IconData _getIcon(String? type) {
@@ -105,7 +103,6 @@ class NotificationsScreen extends StatelessWidget {
                     if (value is Map) {
                       final n = Map<String, dynamic>.from(value);
                       n['notificationId'] = n['notificationId'] ?? key;
-                      // Filter based on student's department, semester, section
                       if (matchesAcademic(n, profile)) {
                         items.add(n);
                       }
@@ -202,7 +199,7 @@ class NotificationsScreen extends StatelessWidget {
                                       if (time != null) ...[
                                         const SizedBox(height: 8),
                                         Text(
-                                          _formatTime(time),
+                                          _formatTime(context, time),
                                           style: const TextStyle(color: textGrey, fontSize: 11),
                                         ),
                                       ],

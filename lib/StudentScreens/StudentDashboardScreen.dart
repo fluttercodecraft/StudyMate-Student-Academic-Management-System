@@ -21,7 +21,6 @@ class StudentDashboardScreen extends StatelessWidget {
   static const Color textDark = Color(0xFF1F2937);
   static const Color textGrey = Color(0xFF6B7280);
 
-  // ---------- helpers ----------
   String _firstLetter(String name) {
     final v = name.trim();
     return v.isEmpty ? 'S' : v[0].toUpperCase();
@@ -39,7 +38,6 @@ class StudentDashboardScreen extends StatelessWidget {
     return null;
   }
 
-  /// Streams every child of a Realtime Database node as a list of maps.
   Stream<List<Map<String, dynamic>>> _list(String node) {
     return FirebaseDatabase.instance.ref(node).onValue.map((e) {
       final v = e.snapshot.value;
@@ -102,7 +100,6 @@ class StudentDashboardScreen extends StatelessWidget {
     ],
   );
 
-  // ---------- build ----------
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -170,7 +167,6 @@ class StudentDashboardScreen extends StatelessWidget {
     );
   }
 
-  // ---------- header ----------
   Widget _header(
       BuildContext context, String uid, String name, String photoUrl, Map<String, dynamic> profileData) {
     return Container(
@@ -324,7 +320,6 @@ class StudentDashboardScreen extends StatelessWidget {
     );
   }
 
-  // ---------- sections ----------
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -428,7 +423,6 @@ class StudentDashboardScreen extends StatelessWidget {
     );
   }
 
-  // ---------- classes ----------
   Widget _todayClasses(String uid, Map<String, dynamic> profile) {
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day);
@@ -527,7 +521,6 @@ class StudentDashboardScreen extends StatelessWidget {
     );
   }
 
-  // ---------- assignments ----------
   Widget _assignments(String uid) {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _list('assignments'),
@@ -578,7 +571,6 @@ class StudentDashboardScreen extends StatelessWidget {
     );
   }
 
-  // ---------- quizzes ----------
   Widget _quizzes(String uid) {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _list('quizzes'),
@@ -676,13 +668,12 @@ class StudentDashboardScreen extends StatelessWidget {
               ],
             ),
           ),
-          ?trailing,
+          if (trailing != null) trailing,
         ],
       ),
     );
   }
 
-  // ---------- academic profile ----------
   Widget _academicChip(Map<String, dynamic> data) {
     return Container(
       width: double.infinity,
@@ -855,7 +846,6 @@ class StudentDashboardScreen extends StatelessWidget {
     );
   }
 
-  // ---------- account ----------
   Widget _accountCard(
       BuildContext context, String name, String email, String photoUrl) {
     return Container(
@@ -912,12 +902,11 @@ class StudentDashboardScreen extends StatelessWidget {
     );
   }
 
-  // ---------- misc ----------
   void _showNotifications(BuildContext context, Map<String, dynamic> profile) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => NotificationScreen(profile: profile),
+        builder: (_) => NotificationsScreen(profile: profile),
       ),
     );
   }
