@@ -125,6 +125,7 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
     });
   }
 
+
   Future<void> _save() async {
     final title = _titleCtrl.text.trim();
     final description = _descCtrl.text.trim();
@@ -134,34 +135,28 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
       _snack('Please select a course.');
       return;
     }
-
     if (_department == null) {
       _snack('Please select a department.');
       return;
     }
-
     if (_semester == null) {
       _snack('Please select a semester.');
       return;
     }
-
     if (section.isEmpty) {
       _snack('Please enter a section.');
       return;
     }
-
     if (title.isEmpty) {
       _snack('Please enter a title.');
       return;
     }
-
     if (_due == null) {
       _snack('Please choose a due date.');
       return;
     }
 
     final user = FirebaseAuth.instance.currentUser;
-
     if (user == null) {
       _snack('Please log in again.');
       return;
@@ -170,15 +165,24 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
     setState(() => _saving = true);
 
     try {
-      final course = _courses.firstWhere((item) => item['id'] == _courseId);
+      final course = _courses.firstWhere(
+            (item) => item['id'] == _courseId,
+      );
 
       final database = FirebaseDatabase.instance;
-
       final assignmentRef = database.ref('assignments').push();
-      final notificationRef = database.ref('notifications').push();
+      final assignmentId = assignmentRef.key;
+
+      if (assignmentId == null) {
+        throw Exception('Could not create assignment ID.');
+      }
+
+      // Read registered users to find matching students.
+      final usersSnapshot = await database.ref('users').get();
+      final updates = <String, dynamic>{};
 
       final assignmentData = <String, dynamic>{
-        'assignmentId': assignmentRef.key,
+        'assignmentId': assignmentId,
         'title': title,
         'description': description,
         'courseId': _courseId,
@@ -191,30 +195,94 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
         'createdAt': ServerValue.timestamp,
       };
 
-      final notificationData = <String, dynamic>{
-        'notificationId': notificationRef.key,
-        'type': 'assignment',
-        'title': 'New Assignment: $title',
-        'body': '${course['name']} — Due ${_formatDue(_due!)}',
-        'assignmentId': assignmentRef.key,
-        'courseId': _courseId,
-        'courseName': course['name'],
-        'teacherId': user.uid,
-        'department': _department,
-        'semester': _semester,
-        'section': section,
-        'createdAt': ServerValue.timestamp,
-      };
+      updates['assignments/$assignmentId'] = assignmentData;
 
-      // Save both records in one Firebase update.
-      await database.ref().update({
-        'assignments/${assignmentRef.key}': assignmentData,
-        'notifications/${notificationRef.key}': notificationData,
-      });
+      int notificationCount = 0;
+
+      final usersValue = usersSnapshot.value;
+
+      if (usersValue is Map) {
+        usersValue.forEach((uid, value) {
+          if (value is! Map) return;
+
+          final student = Map<String, dynamic>.from(value);
+          final studentUid = uid.toString();
+
+          final role = (student['role'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+
+          final department = (student['department'] ?? '')
+              .toString()
+              .trim();
+
+          final semester = (student['semester'] ?? '')
+              .toString()
+              .trim();
+
+          final studentSection = (student['section'] ?? '')
+              .toString()
+              .trim()
+              .toUpperCase();
+
+          // Notify students in the selected department and semester.
+          if (role != 'student') return;
+          if (studentUid == user.uid) return;
+          if (department != _department) return;
+          if (semester != _semester) return;
+
+          // If the student's profile has a section, match it.
+          // If section is not stored in the profile, department and
+          // semester are used until section data is added.
+          if (studentSection.isNotEmpty &&
+              studentSection != section) {
+            return;
+          }
+
+          final notificationRef =
+          database.ref('notifications/$studentUid').push();
+
+          final notificationId = notificationRef.key;
+          if (notificationId == null) return;
+
+          updates[
+          'notifications/$studentUid/$notificationId'
+          ] = <String, dynamic>{
+            'notificationId': notificationId,
+            'recipientId': studentUid,
+            'type': 'assignment',
+            'title': 'New Assignment: $title',
+            'body':
+            '${course['name']} — Due ${_formatDue(_due!)}',
+            'assignmentId': assignmentId,
+            'courseId': _courseId,
+            'courseName': course['name'],
+            'teacherId': user.uid,
+            'department': _department,
+            'semester': _semester,
+            'section': section,
+            'createdAt': ServerValue.timestamp,
+            'isRead': false,
+          };
+
+          notificationCount++;
+        });
+      }
+
+      // Save the assignment and all student notifications together.
+      await database.ref().update(updates);
 
       if (!mounted) return;
 
-      _snack('Assignment created and notification sent.');
+      final message = notificationCount > 0
+          ? 'Assignment created. $notificationCount student(s) notified in the app.'
+          : 'Assignment created, but no matching students were found.';
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
@@ -223,6 +291,7 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
       _snack('Could not save assignment: $e');
     }
   }
+
 
   void _snack(String message) {
     ScaffoldMessenger.of(context)

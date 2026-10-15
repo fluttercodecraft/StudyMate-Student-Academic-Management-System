@@ -40,8 +40,9 @@ class NotificationService {
       iOS: iosSettings,
     );
 
-    await _localNotifications.initialize(settings);
-
+    await _localNotifications.initialize(
+      settings: settings,
+    );
     final androidPlugin = _localNotifications
         .resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
@@ -64,10 +65,10 @@ class NotificationService {
       if (notification == null) return;
 
       await _localNotifications.show(
-        notification.hashCode,
-        notification.title ?? 'StudyMate Update',
-        notification.body ?? 'You have a new academic update.',
-        NotificationDetails(
+        id: notification.hashCode,
+        title: notification.title ?? 'StudyMate Update',
+        body: notification.body ?? 'You have a new academic update.',
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
             _channel.id,
             _channel.name,
