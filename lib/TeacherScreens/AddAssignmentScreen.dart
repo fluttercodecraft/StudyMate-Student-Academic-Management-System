@@ -16,14 +16,30 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
   static const Color textDark = Color(0xFF1F2937);
   static const Color textGrey = Color(0xFF6B7280);
 
-  final _titleCtrl = TextEditingController();
-  final _descCtrl = TextEditingController();
+  final TextEditingController _titleCtrl = TextEditingController();
+  final TextEditingController _descCtrl = TextEditingController();
+  final TextEditingController _sectionCtrl = TextEditingController();
 
   List<Map<String, String>> _courses = [];
+
   String? _courseId;
+  String? _department;
+  String? _semester;
   DateTime? _due;
+
   bool _loadingCourses = true;
   bool _saving = false;
+
+  final List<String> _departments = [
+    'Civil',
+    'Electrical',
+    'Mechanical',
+    'Computer Science',
+    'Software',
+    'Telecommunication',
+  ];
+
+  final List<String> _semesters = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
   @override
   void initState() {
@@ -35,40 +51,51 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
   void dispose() {
     _titleCtrl.dispose();
     _descCtrl.dispose();
+    _sectionCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _loadCourses() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    try {
-      final snap = await FirebaseDatabase.instance.ref('courses').get();
-      final v = snap.value;
-      final list = <Map<String, String>>[];
 
-      if (v is Map) {
-        v.forEach((key, value) {
+    try {
+      final snapshot = await FirebaseDatabase.instance.ref('courses').get();
+
+      final value = snapshot.value;
+      final List<Map<String, String>> list = [];
+
+      if (value is Map) {
+        value.forEach((key, value) {
           if (value is Map) {
-            final c = Map<String, dynamic>.from(value);
-            // Only filter when the course actually stores an owner id.
-            final owner = c['teacherId']?.toString();
-            if (owner != null && owner.isNotEmpty && owner != uid) return;
+            final course = Map<String, dynamic>.from(value);
+
+            final owner = course['teacherId']?.toString();
+
+            // Exclude courses owned by another teacher when an owner
+            // ID is stored. Courses without teacherId remain included,
+            // matching the behavior of the original screen.
+            if (owner != null && owner.isNotEmpty && owner != uid) {
+              return;
+            }
 
             list.add({
-              'id': (c['courseId'] ?? key).toString(),
-              'name': (c['courseName'] ?? 'Unnamed Course').toString(),
-              'code': (c['courseCode'] ?? '').toString(),
+              'id': (course['courseId'] ?? key).toString(),
+              'name': (course['courseName'] ?? 'Unnamed Course').toString(),
+              'code': (course['courseCode'] ?? '').toString(),
             });
           }
         });
       }
 
       if (!mounted) return;
+
       setState(() {
         _courses = list;
         _loadingCourses = false;
       });
     } catch (e) {
       if (!mounted) return;
+
       setState(() => _loadingCourses = false);
       _snack('Could not load courses: $e');
     }
@@ -76,19 +103,22 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
 
   Future<void> _pickDue() async {
     final now = DateTime.now();
+
     final date = await showDatePicker(
       context: context,
       initialDate: _due ?? now.add(const Duration(days: 7)),
-      firstDate: now,
+      firstDate: DateTime(now.year, now.month, now.day),
       lastDate: DateTime(now.year + 2),
     );
+
     if (date == null || !mounted) return;
 
     final time = await showTimePicker(
       context: context,
       initialTime: const TimeOfDay(hour: 23, minute: 59),
     );
-    if (time == null) return;
+
+    if (time == null || !mounted) return;
 
     setState(() {
       _due = DateTime(date.year, date.month, date.day, time.hour, time.minute);
@@ -97,55 +127,129 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
 
   Future<void> _save() async {
     final title = _titleCtrl.text.trim();
-    final desc = _descCtrl.text.trim();
+    final description = _descCtrl.text.trim();
+    final section = _sectionCtrl.text.trim().toUpperCase();
 
-    if (_courseId == null) return _snack('Please select a course.');
-    if (title.isEmpty) return _snack('Please enter a title.');
-    if (_due == null) return _snack('Please choose a due date.');
+    if (_courseId == null) {
+      _snack('Please select a course.');
+      return;
+    }
+
+    if (_department == null) {
+      _snack('Please select a department.');
+      return;
+    }
+
+    if (_semester == null) {
+      _snack('Please select a semester.');
+      return;
+    }
+
+    if (section.isEmpty) {
+      _snack('Please enter a section.');
+      return;
+    }
+
+    if (title.isEmpty) {
+      _snack('Please enter a title.');
+      return;
+    }
+
+    if (_due == null) {
+      _snack('Please choose a due date.');
+      return;
+    }
 
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return _snack('Please log in again.');
+
+    if (user == null) {
+      _snack('Please log in again.');
+      return;
+    }
 
     setState(() => _saving = true);
 
     try {
-      final course = _courses.firstWhere((c) => c['id'] == _courseId);
+      final course = _courses.firstWhere((item) => item['id'] == _courseId);
 
-      final ref = FirebaseDatabase.instance.ref('assignments').push();
-      await ref.set({
-        'assignmentId': ref.key,
+      final database = FirebaseDatabase.instance;
+
+      final assignmentRef = database.ref('assignments').push();
+      final notificationRef = database.ref('notifications').push();
+
+      final assignmentData = <String, dynamic>{
+        'assignmentId': assignmentRef.key,
         'title': title,
-        'description': desc,
+        'description': description,
         'courseId': _courseId,
         'courseName': course['name'],
         'dueDate': _due!.millisecondsSinceEpoch,
         'teacherId': user.uid,
+        'department': _department,
+        'semester': _semester,
+        'section': section,
         'createdAt': ServerValue.timestamp,
+      };
+
+      final notificationData = <String, dynamic>{
+        'notificationId': notificationRef.key,
+        'type': 'assignment',
+        'title': 'New Assignment: $title',
+        'body': '${course['name']} — Due ${_formatDue(_due!)}',
+        'assignmentId': assignmentRef.key,
+        'courseId': _courseId,
+        'courseName': course['name'],
+        'teacherId': user.uid,
+        'department': _department,
+        'semester': _semester,
+        'section': section,
+        'createdAt': ServerValue.timestamp,
+      };
+
+      // Save both records in one Firebase update.
+      await database.ref().update({
+        'assignments/${assignmentRef.key}': assignmentData,
+        'notifications/${notificationRef.key}': notificationData,
       });
 
       if (!mounted) return;
-      _snack('Assignment created.');
+
+      _snack('Assignment created and notification sent.');
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
+
       setState(() => _saving = false);
-      _snack('Could not save: $e');
+      _snack('Could not save assignment: $e');
     }
   }
 
-  void _snack(String msg) {
+  void _snack(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg)));
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  String _formatDue(DateTime d) {
-    const m = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  String _formatDue(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
-    final t = TimeOfDay.fromDateTime(d).format(context);
-    return '${d.day} ${m[d.month - 1]} ${d.year}, $t';
+
+    final time = TimeOfDay.fromDateTime(date).format(context);
+
+    return '${date.day} ${months[date.month - 1]} '
+        '${date.year}, $time';
   }
 
   @override
@@ -163,16 +267,40 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
                 children: [
                   _label('Course'),
                   _courseField(),
+
+                  const SizedBox(height: 18),
+                  _label('Department'),
+                  _departmentField(),
+
+                  const SizedBox(height: 18),
+                  _label('Semester'),
+                  _semesterField(),
+
+                  const SizedBox(height: 18),
+                  _label('Section'),
+                  TextField(
+                    controller: _sectionCtrl,
+                    textCapitalization: TextCapitalization.characters,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: _decoration('e.g. B'),
+                  ),
+
                   const SizedBox(height: 18),
                   _label('Title'),
                   _input(_titleCtrl, 'e.g. Assignment 1: Linked Lists'),
+
                   const SizedBox(height: 18),
                   _label('Description'),
-                  _input(_descCtrl, 'Instructions for students (optional)',
-                      lines: 4),
+                  _input(
+                    _descCtrl,
+                    'Instructions for students (optional)',
+                    lines: 4,
+                  ),
+
                   const SizedBox(height: 18),
                   _label('Due date'),
                   _dueField(),
+
                   const SizedBox(height: 28),
                   SizedBox(
                     width: double.infinity,
@@ -189,20 +317,20 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
                       ),
                       child: _saving
                           ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: Colors.white,
-                        ),
-                      )
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
                           : const Text(
-                        'Create Assignment',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
+                              'Create Assignment',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -218,7 +346,11 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
-          12, MediaQuery.of(context).padding.top + 8, 18, 24),
+        12,
+        MediaQuery.of(context).padding.top + 8,
+        18,
+        24,
+      ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [primary, primaryDark],
@@ -231,8 +363,11 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: Colors.white, size: 20),
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
           const Expanded(
             child: Text(
@@ -251,53 +386,100 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
               color: Colors.white24,
               borderRadius: BorderRadius.circular(13),
             ),
-            child: const Icon(Icons.assignment_rounded,
-                color: Colors.white, size: 22),
+            child: const Icon(
+              Icons.assignment_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _label(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Text(
-      text,
-      style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 13.5,
-        color: textDark,
+  Widget _label(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 13.5,
+          color: textDark,
+        ),
       ),
-    ),
-  );
+    );
+  }
 
-  InputDecoration _decoration(String hint) => InputDecoration(
-    hintText: hint,
-    hintStyle: const TextStyle(color: textGrey, fontSize: 13),
-    filled: true,
-    fillColor: Colors.white,
-    contentPadding:
-    const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(15),
-      borderSide: const BorderSide(color: Color(0xFFE6EAF0)),
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(15),
-      borderSide: const BorderSide(color: Color(0xFFE6EAF0)),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(15),
-      borderSide: const BorderSide(color: primary, width: 1.5),
-    ),
-  );
+  InputDecoration _decoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: textGrey, fontSize: 13),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: const BorderSide(color: Color(0xFFE6EAF0)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: const BorderSide(color: Color(0xFFE6EAF0)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: const BorderSide(color: primary, width: 1.5),
+      ),
+    );
+  }
 
-  Widget _input(TextEditingController c, String hint, {int lines = 1}) {
+  Widget _input(
+    TextEditingController controller,
+    String hint, {
+    int lines = 1,
+  }) {
     return TextField(
-      controller: c,
+      controller: controller,
       maxLines: lines,
       style: const TextStyle(fontSize: 14),
       decoration: _decoration(hint),
+    );
+  }
+
+  Widget _departmentField() {
+    return DropdownButtonFormField<String>(
+      initialValue: _department,
+      isExpanded: true,
+      decoration: _decoration('Select department'),
+      items: _departments.map((department) {
+        return DropdownMenuItem<String>(
+          value: department,
+          child: Text(department, style: const TextStyle(fontSize: 14)),
+        );
+      }).toList(),
+      onChanged: (value) {
+        setState(() => _department = value);
+      },
+    );
+  }
+
+  Widget _semesterField() {
+    return DropdownButtonFormField<String>(
+      initialValue: _semester,
+      isExpanded: true,
+      decoration: _decoration('Select semester'),
+      items: _semesters.map((semester) {
+        return DropdownMenuItem<String>(
+          value: semester,
+          child: Text(
+            'Semester $semester',
+            style: const TextStyle(fontSize: 14),
+          ),
+        );
+      }).toList(),
+      onChanged: (value) {
+        setState(() => _semester = value);
+      },
     );
   }
 
@@ -338,19 +520,22 @@ class _AddAssignmentScreenState extends State<AddAssignmentScreen> {
       initialValue: _courseId,
       isExpanded: true,
       decoration: _decoration('Select a course'),
-      items: _courses
-          .map(
-            (c) => DropdownMenuItem<String>(
-          value: c['id'],
+      items: _courses.map((course) {
+        final code = course['code']!;
+        final name = course['name']!;
+
+        return DropdownMenuItem<String>(
+          value: course['id'],
           child: Text(
-            c['code']!.isEmpty ? c['name']! : '${c['name']} (${c['code']})',
+            code.isEmpty ? name : '$name ($code)',
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 14),
           ),
-        ),
-      )
-          .toList(),
-      onChanged: (v) => setState(() => _courseId = v),
+        );
+      }).toList(),
+      onChanged: (value) {
+        setState(() => _courseId = value);
+      },
     );
   }
 

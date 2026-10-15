@@ -6,7 +6,6 @@ import 'package:study_mate/StudentScreens/AssignmentScrren.dart';
 import 'package:study_mate/StudentScreens/AttandanceScreen.dart';
 import 'package:study_mate/StudentScreens/MarksScreen.dart';
 import 'package:study_mate/StudentScreens/NotificationScreen.dart';
-
 import 'package:study_mate/StudentScreens/QuizesScreen.dart';
 import 'package:study_mate/StudentScreens/TimetableScreen.dart';
 import 'package:study_mate/StudentScreens/courcesScreen.dart';
@@ -22,83 +21,114 @@ class StudentDashboardScreen extends StatelessWidget {
   static const Color textGrey = Color(0xFF6B7280);
 
   String _firstLetter(String name) {
-    final v = name.trim();
-    return v.isEmpty ? 'S' : v[0].toUpperCase();
+    final value = name.trim();
+    return value.isEmpty ? 'S' : value[0].toUpperCase();
   }
 
   String _greeting() {
-    final h = DateTime.now().hour;
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
     return 'Good evening';
   }
 
-  DateTime? _toDate(dynamic v) {
-    if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
+  DateTime? _toDate(dynamic value) {
+    if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    }
+    if (value is double) {
+      return DateTime.fromMillisecondsSinceEpoch(value.toInt());
+    }
     return null;
   }
 
   Stream<List<Map<String, dynamic>>> _list(String node) {
-    return FirebaseDatabase.instance.ref(node).onValue.map((e) {
-      final v = e.snapshot.value;
-      final out = <Map<String, dynamic>>[];
-      if (v is Map) {
-        v.forEach((k, val) {
-          if (val is Map) out.add(Map<String, dynamic>.from(val));
+    return FirebaseDatabase.instance.ref(node).onValue.map((event) {
+      final value = event.snapshot.value;
+      final output = <Map<String, dynamic>>[];
+
+      if (value is Map) {
+        value.forEach((key, item) {
+          if (item is Map) {
+            output.add(Map<String, dynamic>.from(item));
+          }
         });
       }
-      return out;
+
+      return output;
     });
   }
 
-  String _formatDate(DateTime d) {
-    const m = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  String _formatDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
-    return '${d.day} ${m[d.month - 1]}';
+
+    return '${date.day} ${months[date.month - 1]}';
   }
 
   List<Map<String, dynamic>> _sorted(
-      List<Map<String, dynamic>> items,
-      String field, {
-        DateTime? from,
-        DateTime? to,
-        bool upcomingOnly = false,
-        int limit = 10,
-      }) {
+    List<Map<String, dynamic>> items,
+    String field, {
+    DateTime? from,
+    DateTime? to,
+    bool upcomingOnly = false,
+    int limit = 10,
+  }) {
     final now = DateTime.now();
-    final list = items.where((d) {
-      final t = _toDate(d[field]);
+
+    final filtered = items.where((item) {
+      final date = _toDate(item[field]);
+
       if (from != null && to != null) {
-        return t != null && !t.isBefore(from) && t.isBefore(to);
+        return date != null && !date.isBefore(from) && date.isBefore(to);
       }
-      if (upcomingOnly) return t == null || !t.isBefore(now);
+
+      if (upcomingOnly) {
+        return date == null || !date.isBefore(now);
+      }
+
       return true;
     }).toList();
 
-    list.sort((a, b) {
-      final x = _toDate(a[field]);
-      final y = _toDate(b[field]);
-      if (x == null && y == null) return 0;
-      if (x == null) return 1;
-      if (y == null) return -1;
-      return x.compareTo(y);
+    filtered.sort((a, b) {
+      final first = _toDate(a[field]);
+      final second = _toDate(b[field]);
+
+      if (first == null && second == null) return 0;
+      if (first == null) return 1;
+      if (second == null) return -1;
+
+      return first.compareTo(second);
     });
-    return list.take(limit).toList();
+
+    return filtered.take(limit).toList();
   }
 
-  BoxDecoration _card() => BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(18),
-    boxShadow: const [
-      BoxShadow(
-        color: Color(0x0F1355D6),
-        blurRadius: 14,
-        offset: Offset(0, 5),
-      ),
-    ],
-  );
+  BoxDecoration _card() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x0F1355D6),
+          blurRadius: 14,
+          offset: Offset(0, 5),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -110,10 +140,13 @@ class StudentDashboardScreen extends StatelessWidget {
 
     return StreamBuilder<DatabaseEvent>(
       stream: FirebaseDatabase.instance.ref('users/${user.uid}').onValue,
-      builder: (context, snap) {
-        final raw = snap.data?.snapshot.value;
-        final data =
-        raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+      builder: (context, snapshot) {
+        final raw = snapshot.data?.snapshot.value;
+
+        final data = raw is Map
+            ? Map<String, dynamic>.from(raw)
+            : <String, dynamic>{};
+
         final name = (data['name'] ?? user.displayName ?? 'Student').toString();
         final email = (data['email'] ?? user.email ?? 'No email').toString();
         final photoUrl = (data['profileImageUrl'] ?? '').toString();
@@ -149,10 +182,10 @@ class StudentDashboardScreen extends StatelessWidget {
                         _todayClasses(user.uid, data),
                         const SizedBox(height: 26),
                         _sectionTitle('Upcoming Assignments'),
-                        _assignments(user.uid),
+                        _assignments(user.uid, data),
                         const SizedBox(height: 26),
                         _sectionTitle('Quizzes'),
-                        _quizzes(user.uid),
+                        _quizzes(user.uid, data),
                         const SizedBox(height: 26),
                         _accountCard(context, name, email, photoUrl),
                       ],
@@ -168,11 +201,20 @@ class StudentDashboardScreen extends StatelessWidget {
   }
 
   Widget _header(
-      BuildContext context, String uid, String name, String photoUrl, Map<String, dynamic> profileData) {
+    BuildContext context,
+    String uid,
+    String name,
+    String photoUrl,
+    Map<String, dynamic> profileData,
+  ) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
-          20, MediaQuery.of(context).padding.top + 16, 20, 24),
+        20,
+        MediaQuery.of(context).padding.top + 16,
+        20,
+        24,
+      ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [primary, primaryDark],
@@ -197,17 +239,18 @@ class StudentDashboardScreen extends StatelessWidget {
                   child: CircleAvatar(
                     radius: 24,
                     backgroundColor: const Color(0xFFE8EFFF),
-                    backgroundImage:
-                    photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                    backgroundImage: photoUrl.isNotEmpty
+                        ? NetworkImage(photoUrl)
+                        : null,
                     child: photoUrl.isEmpty
                         ? Text(
-                      _firstLetter(name),
-                      style: const TextStyle(
-                        color: primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    )
+                            _firstLetter(name),
+                            style: const TextStyle(
+                              color: primary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          )
                         : null,
                   ),
                 ),
@@ -220,7 +263,9 @@ class StudentDashboardScreen extends StatelessWidget {
                     Text(
                       _greeting(),
                       style: const TextStyle(
-                          color: Colors.white70, fontSize: 12),
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -240,9 +285,32 @@ class StudentDashboardScreen extends StatelessWidget {
                 color: Colors.white24,
                 shape: const CircleBorder(),
                 child: IconButton(
+                  tooltip: 'Notifications',
                   onPressed: () => _showNotifications(context, profileData),
-                  icon: const Icon(Icons.notifications_none_rounded,
-                      color: Colors.white),
+                  icon: const Icon(
+                    Icons.notifications_none_rounded,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Material(
+                color: Colors.white24,
+                shape: const CircleBorder(),
+                child: IconButton(
+                  tooltip: 'Log out',
+                  onPressed: () async {
+                    await FirebaseAuth.instance.signOut();
+
+                    if (!context.mounted) return;
+
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => LoginScreen()),
+                      (route) => false,
+                    );
+                  },
+                  icon: const Icon(Icons.logout, color: Colors.white),
                 ),
               ),
             ],
@@ -270,15 +338,22 @@ class StudentDashboardScreen extends StatelessWidget {
         Expanded(
           child: StreamBuilder<DatabaseEvent>(
             stream: FirebaseDatabase.instance.ref('courses').onValue,
-            builder: (context, snap) {
-              final v = snap.data?.snapshot.value;
-              final count = v is Map ? v.length : 0;
+            builder: (context, snapshot) {
+              final value = snapshot.data?.snapshot.value;
+              final count = value is Map ? value.length : 0;
+
               return _statCard(Icons.menu_book_rounded, '$count', 'Courses');
             },
           ),
         ),
         const SizedBox(width: 10),
-        Expanded(child: _rtdbStat('assignments', Icons.assignment_rounded, 'Assignments')),
+        Expanded(
+          child: _rtdbStat(
+            'assignments',
+            Icons.assignment_rounded,
+            'Assignments',
+          ),
+        ),
         const SizedBox(width: 10),
         Expanded(child: _rtdbStat('quizzes', Icons.quiz_rounded, 'Quizzes')),
       ],
@@ -288,8 +363,9 @@ class StudentDashboardScreen extends StatelessWidget {
   Widget _rtdbStat(String node, IconData icon, String label) {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _list(node),
-      builder: (context, snap) =>
-          _statCard(icon, '${snap.data?.length ?? 0}', label),
+      builder: (context, snapshot) {
+        return _statCard(icon, '${snapshot.data?.length ?? 0}', label);
+      },
     );
   }
 
@@ -313,8 +389,10 @@ class StudentDashboardScreen extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          Text(label,
-              style: const TextStyle(color: Colors.white70, fontSize: 11)),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 11),
+          ),
         ],
       ),
     );
@@ -349,35 +427,89 @@ class StudentDashboardScreen extends StatelessWidget {
 
   Widget _studyTools(BuildContext context, Map<String, dynamic> profile) {
     final tools = <_Tool>[
-      _Tool(Icons.menu_book_rounded, 'Courses', const Color(0xFF1355D6),
-          const Color(0xFFE8EFFF), () {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const CoursesScreen()));
-          }),
-      _Tool(Icons.assignment_rounded, 'Assignments', const Color(0xFFF59E0B),
-          const Color(0xFFFEF3C7),
-              () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const AssignmentsScreen()))),
-      _Tool(Icons.quiz_rounded, 'Quizzes', const Color(0xFF8B5CF6),
-          const Color(0xFFEDE9FE),
-              () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const QuizzesScreen()))),
-      _Tool(Icons.fact_check_rounded, 'Attendance', const Color(0xFF10B981),
-          const Color(0xFFD1FAE5),
-              () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const AttendanceScreen()))),
-      _Tool(Icons.bar_chart_rounded, 'Marks', const Color(0xFFEF4444),
-          const Color(0xFFFEE2E2),
-              () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const MarksScreen()))),
-      _Tool(Icons.calendar_month_rounded, 'Timetable', const Color(0xFF0EA5E9),
-          const Color(0xFFE0F2FE),
-              () => Navigator.push(context,
-              MaterialPageRoute(
-                  builder: (_) => TimetableScreen(profile: profile)))),
-      _Tool(Icons.sticky_note_2_rounded, 'Notes', const Color(0xFFEC4899),
-          const Color(0xFFFCE7F3),
-              () => Navigator.pushNamed(context, '/studentNotes')),
+      _Tool(
+        Icons.menu_book_rounded,
+        'Courses',
+        const Color(0xFF1355D6),
+        const Color(0xFFE8EFFF),
+        () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CoursesScreen()),
+          );
+        },
+      ),
+      _Tool(
+        Icons.assignment_rounded,
+        'Assignments',
+        const Color(0xFFF59E0B),
+        const Color(0xFFFEF3C7),
+        () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AssignmentsScreen()),
+          );
+        },
+      ),
+      _Tool(
+        Icons.quiz_rounded,
+        'Quizzes',
+        const Color(0xFF8B5CF6),
+        const Color(0xFFEDE9FE),
+        () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const QuizzesScreen()),
+          );
+        },
+      ),
+      _Tool(
+        Icons.fact_check_rounded,
+        'Attendance',
+        const Color(0xFF10B981),
+        const Color(0xFFD1FAE5),
+        () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AttendanceScreen()),
+          );
+        },
+      ),
+      _Tool(
+        Icons.bar_chart_rounded,
+        'Marks',
+        const Color(0xFFEF4444),
+        const Color(0xFFFEE2E2),
+        () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const MarksScreen()),
+          );
+        },
+      ),
+      _Tool(
+        Icons.calendar_month_rounded,
+        'Timetable',
+        const Color(0xFF0EA5E9),
+        const Color(0xFFE0F2FE),
+        () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TimetableScreen(profile: profile),
+            ),
+          );
+        },
+      ),
+      _Tool(
+        Icons.sticky_note_2_rounded,
+        'Notes',
+        const Color(0xFFEC4899),
+        const Color(0xFFFCE7F3),
+        () {
+          Navigator.pushNamed(context, '/studentNotes');
+        },
+      ),
     ];
 
     return GridView.count(
@@ -391,9 +523,9 @@ class StudentDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _toolItem(_Tool t) {
+  Widget _toolItem(_Tool tool) {
     return GestureDetector(
-      onTap: t.onTap,
+      onTap: tool.onTap,
       behavior: HitTestBehavior.opaque,
       child: Column(
         children: [
@@ -401,14 +533,14 @@ class StudentDashboardScreen extends StatelessWidget {
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              color: t.bg,
+              color: tool.bg,
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(t.icon, color: t.color, size: 28),
+            child: Icon(tool.icon, color: tool.color, size: 28),
           ),
           const SizedBox(height: 7),
           Text(
-            t.title,
+            tool.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -430,32 +562,40 @@ class StudentDashboardScreen extends StatelessWidget {
 
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _list('classes'),
-      builder: (context, snap) {
-        if (snap.hasError) {
-          return _emptyCard(Icons.error_outline_rounded,
-              "Could not load today's classes.");
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _emptyCard(
+            Icons.error_outline_rounded,
+            "Could not load today's classes.",
+          );
         }
-        if (!snap.hasData) return _loadingCard();
+
+        if (!snapshot.hasData) return _loadingCard();
 
         final items = _sorted(
-          snap.data!.where((c) => matchesAcademic(c, profile)).toList(),
+          snapshot.data!
+              .where((item) => matchesAcademic(item, profile))
+              .toList(),
           'startAt',
           from: start,
           to: end,
           limit: 50,
         );
+
         if (items.isEmpty) {
           return _emptyCard(
-              Icons.free_breakfast_rounded, 'No classes scheduled today.');
+            Icons.free_breakfast_rounded,
+            'No classes scheduled today.',
+          );
         }
 
         return Column(
-          children: items.map((d) {
-            final subject = (d['subject'] ?? 'Class').toString();
-            final teacher = (d['teacher'] ?? '').toString();
-            final room = (d['room'] ?? '').toString();
-            final s = _toDate(d['startAt']);
-            final e = _toDate(d['endAt']);
+          children: items.map((item) {
+            final subject = (item['subject'] ?? 'Class').toString();
+            final teacher = (item['teacher'] ?? '').toString();
+            final room = (item['room'] ?? '').toString();
+            final startTime = _toDate(item['startAt']);
+            final endTime = _toDate(item['endAt']);
 
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
@@ -476,9 +616,13 @@ class StudentDashboardScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(subject,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text(
+                          subject,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           [
@@ -486,24 +630,28 @@ class StudentDashboardScreen extends StatelessWidget {
                             if (room.isNotEmpty) 'Room $room',
                           ].join('  •  '),
                           style: const TextStyle(
-                              color: textGrey, fontSize: 11.5),
+                            color: textGrey,
+                            fontSize: 11.5,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  if (s != null)
+                  if (startTime != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 7),
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE8EFFF),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        e == null
-                            ? TimeOfDay.fromDateTime(s).format(context)
-                            : '${TimeOfDay.fromDateTime(s).format(context)}\n'
-                            '${TimeOfDay.fromDateTime(e).format(context)}',
+                        endTime == null
+                            ? TimeOfDay.fromDateTime(startTime).format(context)
+                            : '${TimeOfDay.fromDateTime(startTime).format(context)}\n'
+                                  '${TimeOfDay.fromDateTime(endTime).format(context)}',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: primary,
@@ -521,49 +669,54 @@ class StudentDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _assignments(String uid) {
+  Widget _assignments(String uid, Map<String, dynamic> profile) {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _list('assignments'),
-      builder: (context, snap) {
-        if (snap.hasError) {
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
           return _emptyCard(
-              Icons.error_outline_rounded, 'Could not load assignments.');
+            Icons.error_outline_rounded,
+            'Could not load assignments.',
+          );
         }
-        if (!snap.hasData) return _loadingCard();
 
-        final items = _sorted(snap.data!, 'dueDate', upcomingOnly: true);
+        if (!snapshot.hasData) return _loadingCard();
+
+        final items = _sorted(snapshot.data!, 'dueDate', upcomingOnly: true);
+
         if (items.isEmpty) {
-          return _emptyCard(
-              Icons.task_alt_rounded, 'No upcoming assignments.');
+          return _emptyCard(Icons.task_alt_rounded, 'No upcoming assignments.');
         }
 
         return Column(
-          children: items.map((d) {
-            final due = _toDate(d['dueDate']);
+          children: items.map((item) {
+            final dueDate = _toDate(item['dueDate']);
 
             return _listTile(
               icon: Icons.assignment_rounded,
               color: const Color(0xFFF59E0B),
               bg: const Color(0xFFFEF3C7),
-              title: (d['title'] ?? 'Assignment').toString(),
-              subtitle: (d['courseName'] ?? '').toString(),
-              trailing: due == null
+              title: (item['title'] ?? 'Assignment').toString(),
+              subtitle: (item['courseName'] ?? '').toString(),
+              trailing: dueDate == null
                   ? null
                   : Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const Text('Due',
-                      style: TextStyle(color: textGrey, fontSize: 10)),
-                  Text(
-                    _formatDate(due),
-                    style: const TextStyle(
-                      color: Color(0xFFD97706),
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text(
+                          'Due',
+                          style: TextStyle(color: textGrey, fontSize: 10),
+                        ),
+                        Text(
+                          _formatDate(dueDate),
+                          style: const TextStyle(
+                            color: Color(0xFFD97706),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             );
           }).toList(),
         );
@@ -571,47 +724,56 @@ class StudentDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _quizzes(String uid) {
+  Widget _quizzes(String uid, Map<String, dynamic> profile) {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _list('quizzes'),
-      builder: (context, snap) {
-        if (snap.hasError) {
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
           return _emptyCard(
-              Icons.error_outline_rounded, 'Could not load quizzes.');
+            Icons.error_outline_rounded,
+            'Could not load quizzes.',
+          );
         }
-        if (!snap.hasData) return _loadingCard();
 
-        final items = _sorted(snap.data!, 'date', upcomingOnly: true);
+        if (!snapshot.hasData) return _loadingCard();
+
+        final items = _sorted(snapshot.data!, 'date', upcomingOnly: true);
+
         if (items.isEmpty) {
           return _emptyCard(
-              Icons.lightbulb_outline_rounded, 'No upcoming quizzes.');
+            Icons.lightbulb_outline_rounded,
+            'No upcoming quizzes.',
+          );
         }
 
         return Column(
-          children: items.map((d) {
-            final q = d['questionCount'];
-            final m = d['durationMinutes'];
+          children: items.map((item) {
+            final questionCount = item['questionCount'];
+            final duration = item['durationMinutes'];
 
             return _listTile(
               icon: Icons.quiz_rounded,
               color: const Color(0xFF8B5CF6),
               bg: const Color(0xFFEDE9FE),
-              title: (d['title'] ?? 'Quiz').toString(),
-              subtitle: (d['courseName'] ?? '').toString(),
+              title: (item['title'] ?? 'Quiz').toString(),
+              subtitle: (item['courseName'] ?? '').toString(),
               trailing: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  if (q != null)
-                    Text('$q Questions',
-                        style:
-                        const TextStyle(color: textGrey, fontSize: 10.5)),
-                  if (m != null)
-                    Text('$m min',
-                        style: const TextStyle(
-                          color: Color(0xFF7C3AED),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        )),
+                  if (questionCount != null)
+                    Text(
+                      '$questionCount Questions',
+                      style: const TextStyle(color: textGrey, fontSize: 10.5),
+                    ),
+                  if (duration != null)
+                    Text(
+                      '$duration min',
+                      style: const TextStyle(
+                        color: Color(0xFF7C3AED),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                 ],
               ),
             );
@@ -654,21 +816,24 @@ class StudentDashboardScreen extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 13.5),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13.5,
+                  ),
                 ),
                 if (subtitle.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text(subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style:
-                        const TextStyle(color: textGrey, fontSize: 11.5)),
+                    child: Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: textGrey, fontSize: 11.5),
+                    ),
                   ),
               ],
             ),
           ),
-          if (trailing != null) trailing,
+          ?trailing,
         ],
       ),
     );
@@ -710,23 +875,32 @@ class StudentDashboardScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline_rounded,
-              color: Color(0xFFD97706), size: 26),
+          const Icon(
+            Icons.info_outline_rounded,
+            color: Color(0xFFD97706),
+            size: 26,
+          ),
           const SizedBox(width: 12),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Complete your profile',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: Color(0xFF92400E))),
+                Text(
+                  'Complete your profile',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Color(0xFF92400E),
+                  ),
+                ),
                 SizedBox(height: 3),
                 Text(
                   'Add your department, semester and section to see your classes.',
                   style: TextStyle(
-                      fontSize: 12, color: Color(0xFF92400E), height: 1.4),
+                    fontSize: 12,
+                    color: Color(0xFF92400E),
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
@@ -750,8 +924,8 @@ class StudentDashboardScreen extends StatelessWidget {
   }
 
   void _openAcademicSheet(BuildContext context, String uid) {
-    String? dept;
-    int? sem;
+    String? department;
+    int? semester;
     String? section;
     var saving = false;
 
@@ -762,7 +936,11 @@ class StudentDashboardScreen extends StatelessWidget {
       builder: (sheetContext) => StatefulBuilder(
         builder: (ctx, setSheet) => Container(
           padding: EdgeInsets.fromLTRB(
-              22, 22, 22, MediaQuery.of(ctx).viewInsets.bottom + 22),
+            22,
+            22,
+            22,
+            MediaQuery.of(ctx).viewInsets.bottom + 22,
+          ),
           decoration: const BoxDecoration(
             color: Color(0xFFF4F6FB),
             borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
@@ -772,53 +950,62 @@ class StudentDashboardScreen extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Your class',
-                    style:
-                    TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Your class',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 4),
-                const Text('Pick the department, semester and section you study in.',
-                    style: TextStyle(color: textGrey, fontSize: 12.5)),
+                const Text(
+                  'Pick the department, semester and section you study in.',
+                  style: TextStyle(color: textGrey, fontSize: 12.5),
+                ),
                 const SizedBox(height: 18),
                 AcademicPicker(
-                  department: dept,
-                  semester: sem,
+                  department: department,
+                  semester: semester,
                   section: section,
-                  onDepartment: (v) => setSheet(() => dept = v),
-                  onSemester: (v) => setSheet(() => sem = v),
-                  onSection: (v) => setSheet(() => section = v),
+                  onDepartment: (value) => setSheet(() => department = value),
+                  onSemester: (value) => setSheet(() => semester = value),
+                  onSection: (value) => setSheet(() => section = value),
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: (dept == null ||
-                        sem == null ||
-                        section == null ||
-                        saving)
+                    onPressed:
+                        department == null ||
+                            semester == null ||
+                            section == null ||
+                            saving
                         ? null
                         : () async {
-                      setSheet(() => saving = true);
-                      try {
-                        await FirebaseDatabase.instance
-                            .ref('users/$uid')
-                            .update({
-                          'department': dept,
-                          'semester': sem,
-                          'section': section,
-                        });
-                        if (sheetContext.mounted) {
-                          Navigator.pop(sheetContext);
-                        }
-                      } catch (e) {
-                        setSheet(() => saving = false);
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(content: Text('Could not save: $e')),
-                          );
-                        }
-                      }
-                    },
+                            setSheet(() => saving = true);
+
+                            try {
+                              await FirebaseDatabase.instance
+                                  .ref('users/$uid')
+                                  .update({
+                                    'department': department,
+                                    'semester': semester,
+                                    'section': section,
+                                  });
+
+                              if (sheetContext.mounted) {
+                                Navigator.pop(sheetContext);
+                              }
+                            } catch (error) {
+                              setSheet(() => saving = false);
+
+                              if (ctx.mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Could not save: $error'),
+                                  ),
+                                );
+                              }
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primary,
                       foregroundColor: Colors.white,
@@ -829,13 +1016,17 @@ class StudentDashboardScreen extends StatelessWidget {
                     ),
                     child: saving
                         ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2.5, color: Colors.white),
-                    )
-                        : const Text('Save',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Save',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                   ),
                 ),
               ],
@@ -847,7 +1038,11 @@ class StudentDashboardScreen extends StatelessWidget {
   }
 
   Widget _accountCard(
-      BuildContext context, String name, String email, String photoUrl) {
+    BuildContext context,
+    String name,
+    String email,
+    String photoUrl,
+  ) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: _card(),
@@ -856,12 +1051,17 @@ class StudentDashboardScreen extends StatelessWidget {
           CircleAvatar(
             radius: 23,
             backgroundColor: const Color(0xFFE8EFFF),
-            backgroundImage:
-            photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+            backgroundImage: photoUrl.isNotEmpty
+                ? NetworkImage(photoUrl)
+                : null,
             child: photoUrl.isEmpty
-                ? Text(_firstLetter(name),
-                style: const TextStyle(
-                    color: primary, fontWeight: FontWeight.bold))
+                ? Text(
+                    _firstLetter(name),
+                    style: const TextStyle(
+                      color: primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
                 : null,
           ),
           const SizedBox(width: 12),
@@ -869,15 +1069,19 @@ class StudentDashboardScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 3),
-                Text(email,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: textGrey, fontSize: 12)),
+                Text(
+                  email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: textGrey, fontSize: 12),
+                ),
               ],
             ),
           ),
@@ -885,13 +1089,16 @@ class StudentDashboardScreen extends StatelessWidget {
             color: const Color(0xFFFEE2E2),
             borderRadius: BorderRadius.circular(12),
             child: IconButton(
+              tooltip: 'Log out',
               onPressed: () async {
                 await FirebaseAuth.instance.signOut();
+
                 if (!context.mounted) return;
+
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (_) => LoginScreen()),
-                      (route) => false,
+                  (route) => false,
                 );
               },
               icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
@@ -905,9 +1112,7 @@ class StudentDashboardScreen extends StatelessWidget {
   void _showNotifications(BuildContext context, Map<String, dynamic> profile) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => NotificationsScreen(profile: profile),
-      ),
+      MaterialPageRoute(builder: (_) => NotificationsScreen(profile: profile)),
     );
   }
 
@@ -935,9 +1140,11 @@ class StudentDashboardScreen extends StatelessWidget {
         children: [
           Icon(icon, color: const Color(0xFFB6C2DA), size: 34),
           const SizedBox(height: 8),
-          Text(text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: textGrey, fontSize: 13)),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: textGrey, fontSize: 13),
+          ),
         ],
       ),
     );
